@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <!-- 核心：不发送 Referrer -->
     <meta name="referrer" content="no-referrer">
-    <title>E视界</title>
+    <title>TeslaTV</title>
 
     <!-- 兼容性检测 (必须在所有脚本之前) -->
     <script>
@@ -32,6 +32,38 @@
                     '</div>'
                 );
             }
+        })();
+    </script>
+
+    <!-- 特斯拉车机检测和行车观影支持 -->
+    <script data-cfasync="false">
+        (function () {
+            // 检测是否为特斯拉车机浏览器
+            window.TESLA_CONFIG = {
+                isTesla: /Tesla/i.test(navigator.userAgent),
+                isTheaterMode: window.location.href.includes('tesla_theater=true'),
+                isDriveMode: false  // 将在运行时检测
+            };
+
+            // 如果是特斯拉浏览器，添加标识类
+            if (window.TESLA_CONFIG.isTesla) {
+                document.documentElement.classList.add('tesla-browser');
+                console.log('[TeslaTV] 检测到特斯拉车机浏览器');
+            }
+
+            // 监听来自 iframe 播放器的消息
+            window.addEventListener('message', function (event) {
+                if (event.data && event.data.type === 'tesla-player-exit') {
+                    // 关闭 iframe 播放器
+                    var container = document.getElementById('tesla-fullscreen-container');
+                    if (container) {
+                        container.style.display = 'none';
+                        var iframe = document.getElementById('tesla-player-iframe');
+                        if (iframe) iframe.src = 'about:blank';
+                    }
+                    console.log('[TeslaTV] 退出全屏播放');
+                }
+            });
         })();
     </script>
 
@@ -2416,15 +2448,208 @@
                 transform: none !important;
             }
         }
+
+        /* ========== TeslaTV 特斯拉车机专属样式 ========== */
+
+        /* 特斯拉品牌徽章 */
+        .tesla-mode-badge {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            background: linear-gradient(135deg, #e50914, #b40010);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 9999;
+            box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
+            animation: teslaBadgePulse 3s ease-in-out infinite;
+        }
+
+        @keyframes teslaBadgePulse {
+
+            0%,
+            100% {
+                box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 4px 25px rgba(229, 9, 20, 0.6);
+            }
+        }
+
+        /* 特斯拉全屏 iframe 播放容器 */
+        #tesla-fullscreen-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 99999;
+            background: #000;
+        }
+
+        #tesla-player-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        #tesla-exit-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(229, 9, 20, 0.9);
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 100000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        #tesla-exit-btn:hover {
+            background: #e50914;
+            transform: scale(1.05);
+        }
+
+        /* 特斯拉大屏优化 - 更大的触控目标 */
+        .tesla-browser .movie-card,
+        .tesla-browser .hot-card {
+            min-width: 260px;
+        }
+
+        .tesla-browser .episode-btn {
+            min-width: 80px;
+            min-height: 55px;
+            font-size: 16px;
+        }
+
+        .tesla-browser .source-item {
+            min-height: 50px;
+            font-size: 15px;
+        }
+
+        .tesla-browser .btn-play,
+        .tesla-browser .btn-info {
+            padding: 14px 28px;
+            font-size: 17px;
+        }
+
+        /* 特斯拉模式下放大播放器控件 */
+        .tesla-browser .dplayer-controller {
+            transform: scale(1.2);
+            transform-origin: bottom center;
+        }
+
+        .tesla-browser .dplayer-icons .dplayer-icon {
+            min-width: 50px;
+            min-height: 50px;
+        }
+
+        /* 在播放页面显示 Tesla 播放按钮 */
+        .tesla-play-hint {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #e50914, #b40010);
+            color: #fff;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 9998;
+            box-shadow: 0 6px 20px rgba(229, 9, 20, 0.5);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            animation: teslaHintBounce 2s ease-in-out infinite;
+        }
+
+        .tesla-play-hint:hover {
+            transform: translateX(-50%) scale(1.05);
+        }
+
+        @keyframes teslaHintBounce {
+
+            0%,
+            100% {
+                transform: translateX(-50%) translateY(0);
+            }
+
+            50% {
+                transform: translateX(-50%) translateY(-5px);
+            }
+        }
     </style>
+
 </head>
 
 <body>
+    <!-- TeslaTV 全屏 iframe 播放容器 (用于行车观影) -->
+    <div id="tesla-fullscreen-container" style="display: none;">
+        <iframe id="tesla-player-iframe" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen>
+        </iframe>
+        <button id="tesla-exit-btn" onclick="closeTeslaPlayer()">
+            ✕ 退出播放
+        </button>
+    </div>
+
+    <!-- TeslaTV 模式徽章 (仅在特斯拉浏览器显示) -->
+    <div class="tesla-mode-badge" id="tesla-badge" style="display: none;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path
+                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+        </svg>
+        TeslaTV
+    </div>
+
+    <script>
+        // TeslaTV 全屏播放控制函数
+        function openTeslaPlayer(videoUrl, videoTitle) {
+            var container = document.getElementById('tesla-fullscreen-container');
+            var iframe = document.getElementById('tesla-player-iframe');
+            if (container && iframe) {
+                var playerUrl = 'tesla-player.html?url=' + encodeURIComponent(videoUrl) + '&title=' + encodeURIComponent(videoTitle || '');
+                iframe.src = playerUrl;
+                container.style.display = 'block';
+                console.log('[TeslaTV] 打开全屏播放器:', videoTitle);
+            }
+        }
+
+        function closeTeslaPlayer() {
+            var container = document.getElementById('tesla-fullscreen-container');
+            var iframe = document.getElementById('tesla-player-iframe');
+            if (container) {
+                container.style.display = 'none';
+                if (iframe) iframe.src = 'about:blank';
+            }
+            console.log('[TeslaTV] 关闭全屏播放器');
+        }
+
+        // 显示 TeslaTV 徽章
+        if (window.TESLA_CONFIG && window.TESLA_CONFIG.isTesla) {
+            document.getElementById('tesla-badge').style.display = 'flex';
+        }
+    </script>
+
     <!-- Initial Loading Screen (Buffer) -->
     <div id="app-loader" class="app-loader">
         <div class="loader-logo" style="display: flex; align-items: center; justify-content: center;"><img
-                src="icon.png" style="height: 42px; margin-right: 8px; border-radius: 10px;">视界
-            <span style="font-size:1.2rem; -webkit-text-fill-color: #fff; opacity:0.8;">MAX</span>
+                src="icon.png" style="height: 42px; margin-right: 8px; border-radius: 10px;">TeslaTV
         </div>
         <div class="loader-spinner"></div>
         <div id="loader-status" style="margin-top: 20px; color: #666; font-size: 13px; text-align: center;">正在初始化...
@@ -2436,8 +2661,7 @@
         <div class="password-container">
             <div class="password-logo">
                 <div class="password-logo-text" style="display: flex; align-items: center; justify-content: center;">
-                    <img src="icon.png" style="height: 32px; margin-right: 8px; border-radius: 8px;">视界 <span
-                        style="font-size:1rem; -webkit-text-fill-color: #fff; opacity:0.8;">MAX</span>
+                    <img src="icon.png" style="height: 32px; margin-right: 8px; border-radius: 8px;">TeslaTV
                 </div>
                 <div class="password-logo-subtitle"><i class="fas fa-lock"></i> 需要密码才能访问</div>
             </div>
@@ -2473,8 +2697,7 @@
 
         <nav class="navbar-custom" :class="{ 'scrolled': scrollY > 50 }" v-show="!searched">
             <div class="brand" @click="goHome" style="cursor: pointer; display: flex; align-items: center;"><img
-                    src="icon.png" style="height: 28px; margin-right: 6px; border-radius: 6px;">视界 <span
-                    style="font-size:12px; color:#666; font-weight:normal; margin-left: 2px;">MAX</span></div>
+                    src="icon.png" style="height: 28px; margin-right: 6px; border-radius: 6px;">TeslaTV</div>
         </nav>
 
         <!-- Back to Top Button -->
@@ -4704,6 +4927,20 @@
                     console.log('[播放器] episodeList长度:', this.episodeList?.length);
                     console.log('[播放器] dp已存在:', !!dp);
 
+                    // ========== TeslaTV 特斯拉行车观影模式 ==========
+                    // 检测是否为特斯拉浏览器，如果是则使用 iframe 全屏播放
+                    // 这样可以绕过特斯拉在行驶中禁用视频播放的限制
+                    if (window.TESLA_CONFIG && window.TESLA_CONFIG.isTesla) {
+                        const videoTitle = this.currentGroup?.name || '未知视频';
+                        console.log('[TeslaTV] 检测到特斯拉浏览器，使用 iframe 全屏播放模式');
+
+                        // 使用全屏 iframe 播放器
+                        if (typeof openTeslaPlayer === 'function') {
+                            openTeslaPlayer(url, videoTitle);
+                            return; // 提前返回，不使用 DPlayer
+                        }
+                    }
+
                     const setupErrorHandling = () => {
                         // 监听播放错误，自动切换到下一个可用线路
                         dp.on('error', () => {
@@ -4731,7 +4968,7 @@
                             playbackSpeed: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3],  // 0.25间隔倍速选项
                             video: { url: url, type: 'hls' },
                             contextmenu: [
-                                { text: '🎬 E视界MAX', link: '/' },
+                                { text: '🎬 TeslaTV', link: '/' },
                                 { text: '⚡ 当前速度: 1x', click: () => { } }
                             ]
                         });

@@ -1,6 +1,6 @@
 {
-  "name": "node-video-proxy",
-  "version": "1.0.2",
+  "name": "teslatv",
+  "version": "1.0.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

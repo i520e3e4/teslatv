@@ -1,9 +1,8 @@
 ﻿{
-    "appId": "com.ednovas.donguatv",
-    "appName": "E视界",
+    "appId": "com.teslatv.app",
+    "appName": "TeslaTV",
     "webDir": "public",
     "server": {
-        "url": "https://ednovas.video",
         "cleartext": true
     },
     "plugins": {

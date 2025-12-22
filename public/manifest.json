@@ -1,6 +1,6 @@
 {
-    "name": "E视界",
-    "short_name": "E视界",
+    "name": "TeslaTV",
+    "short_name": "TeslaTV",
     "start_url": "./index.html",
     "display": "standalone",
     "background_color": "#141414",
