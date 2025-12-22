@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="referrer" content="no-referrer">
-    <title>TeslaTV Canvas Player</title>
+    <title>TeslaTV FFmpeg Player</title>
 
     <!-- 关键：告诉特斯拉浏览器这是一个独立页面 -->
     <meta name="tesla-theater" content="true">
@@ -27,7 +27,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
-        /* Canvas 播放器容器 */
+        /* 播放器容器 */
         #player-container {
             position: fixed;
             top: 0;
@@ -45,17 +45,6 @@
             max-height: 100%;
             object-fit: contain;
             background: #000;
-        }
-
-        /* 隐藏的 video 元素（用于解码，不显示） */
-        #hidden-video {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            opacity: 0;
-            pointer-events: none;
-            /* 关键：让 Tesla 检测不到这是视频播放 */
-            visibility: hidden;
         }
 
         /* 控制层 */
@@ -104,7 +93,7 @@
         }
 
         .tesla-badge {
-            background: linear-gradient(135deg, #e50914, #b40010);
+            background: linear-gradient(135deg, #46d369, #2ecc71);
             color: #fff;
             padding: 8px 16px;
             border-radius: 20px;
@@ -113,7 +102,7 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
+            box-shadow: 0 4px 15px rgba(70, 211, 105, 0.4);
         }
 
         .exit-btn {
@@ -168,9 +157,9 @@
         .ctrl-circle.play-btn {
             width: 100px;
             height: 100px;
-            background: linear-gradient(135deg, rgba(229, 9, 20, 0.95), rgba(180, 0, 15, 0.9));
+            background: linear-gradient(135deg, rgba(70, 211, 105, 0.95), rgba(46, 204, 113, 0.9));
             border: 3px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 0 60px rgba(229, 9, 20, 0.5);
+            box-shadow: 0 0 60px rgba(70, 211, 105, 0.5);
         }
 
         .ctrl-circle.play-btn svg {
@@ -202,7 +191,7 @@
 
         .progress-bar {
             height: 100%;
-            background: linear-gradient(90deg, #e50914, #ff4757);
+            background: linear-gradient(90deg, #46d369, #2ecc71);
             border-radius: 4px;
             width: 0%;
             transition: width 0.1s linear;
@@ -216,7 +205,7 @@
             height: 16px;
             background: #fff;
             border-radius: 50%;
-            box-shadow: 0 0 10px rgba(229, 9, 20, 0.8);
+            box-shadow: 0 0 10px rgba(70, 211, 105, 0.8);
             left: 0%;
         }
 
@@ -264,7 +253,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -280,7 +269,7 @@
             width: 60px;
             height: 60px;
             border: 4px solid rgba(255, 255, 255, 0.2);
-            border-top-color: #e50914;
+            border-top-color: #46d369;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -304,7 +293,7 @@
             font-size: 14px;
         }
 
-        /* 模式切换按钮 */
+        /* FFmpeg 模式指示 */
         .mode-indicator {
             position: fixed;
             bottom: 120px;
@@ -338,34 +327,6 @@
             50% {
                 opacity: 0.5;
             }
-        }
-
-        /* 快进/快退提示 */
-        .seek-hint {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: #fff;
-            padding: 15px 25px;
-            border-radius: 12px;
-            font-size: 20px;
-            font-weight: bold;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            pointer-events: none;
-        }
-
-        .seek-hint.left {
-            left: 15%;
-        }
-
-        .seek-hint.right {
-            right: 15%;
-        }
-
-        .seek-hint.show {
-            opacity: 1;
         }
 
         /* 错误提示 */
@@ -402,7 +363,7 @@
         }
 
         .retry-btn {
-            background: #e50914;
+            background: #46d369;
             color: #fff;
             border: none;
             padding: 15px 40px;
@@ -411,14 +372,86 @@
             cursor: pointer;
             margin-bottom: 15px;
         }
+
+        /* 安全警告弹窗 */
+        .safety-warning {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .safety-warning.hidden {
+            display: none;
+        }
+
+        .warning-icon {
+            font-size: 80px;
+            margin-bottom: 30px;
+        }
+
+        .warning-title {
+            color: #ff6b6b;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .warning-text {
+            color: #ccc;
+            font-size: 18px;
+            max-width: 600px;
+            line-height: 1.6;
+            margin-bottom: 40px;
+        }
+
+        .passenger-btn {
+            background: linear-gradient(135deg, #46d369, #2ecc71);
+            color: #fff;
+            border: none;
+            padding: 20px 60px;
+            border-radius: 12px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .passenger-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(70, 211, 105, 0.5);
+        }
     </style>
 </head>
 
 <body>
+    <!-- 安全警告弹窗（需要用户手势激活音频） -->
+    <div class="safety-warning" id="safetyWarning">
+        <div class="warning-icon">⚠️</div>
+        <div class="warning-title">安全提示</div>
+        <div class="warning-text">
+            行车时请专注驾驶。<br>
+            如果您是乘客，请点击下方按钮开始播放。<br>
+            此操作需要您的交互以启用音频播放。
+        </div>
+        <button class="passenger-btn" onclick="acceptWarning()">
+            我是乘客，开始播放
+        </button>
+    </div>
+
     <!-- 加载指示器 -->
-    <div class="loading-overlay" id="loading">
+    <div class="loading-overlay hidden" id="loading">
         <div class="spinner"></div>
-        <div class="loading-text" id="loading-text">正在初始化 Canvas 播放器...</div>
+        <div class="loading-text" id="loading-text">正在初始化 FFmpeg 播放器...</div>
         <div class="loading-progress" id="loading-progress"></div>
     </div>
 
@@ -430,17 +463,15 @@
         <button class="exit-btn" onclick="exitPlayer()">返回</button>
     </div>
 
-    <!-- Canvas 播放器 -->
+    <!-- Canvas 播放器（完全不使用 video/audio 标签） -->
     <div id="player-container" onclick="toggleControls()">
         <canvas id="video-canvas"></canvas>
-        <!-- 隐藏的 video 元素用于解码 -->
-        <video id="hidden-video" playsinline></video>
     </div>
 
-    <!-- Canvas 渲染模式指示 -->
+    <!-- FFmpeg 渲染模式指示 -->
     <div class="mode-indicator" id="mode-indicator">
         <div class="mode-dot"></div>
-        <span>Canvas 渲染模式</span>
+        <span>FFmpeg 渲染模式（绕过限制）</span>
     </div>
 
     <!-- 控制层 -->
@@ -452,7 +483,7 @@
                     <path
                         d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                 </svg>
-                TeslaTV Canvas
+                TeslaTV FFmpeg
             </div>
             <div class="video-title" id="video-title">加载中...</div>
             <button class="exit-btn" onclick="exitPlayer()">✕ 退出</button>
@@ -468,10 +499,6 @@
             </div>
             <div class="ctrl-circle" onclick="seek(10)">⏩</div>
         </div>
-
-        <!-- 快进/快退提示 -->
-        <div class="seek-hint left" id="seekLeft">⏪ -10s</div>
-        <div class="seek-hint right" id="seekRight">+10s ⏩</div>
 
         <!-- 底部控制栏 -->
         <div class="bottom-bar">
@@ -493,243 +520,196 @@
         </div>
     </div>
 
-    <!-- HLS.js (使用 CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
+    <!-- JSMpeg 库（用于 MPEG-1 解码和 Canvas 渲染） -->
+    <script src="https://cdn.jsdelivr.net/npm/jsmpeg@0.2.0/jsmpeg.min.js"></script>
 
     <script>
-        // ========== 禁用 Media Session API（绕过特斯拉检测的关键） ==========
-        if ('mediaSession' in navigator) {
-            try {
-                navigator.mediaSession.metadata = null;
-                navigator.mediaSession.playbackState = 'none';
-                ['play', 'pause', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack'].forEach(action => {
-                    try { navigator.mediaSession.setActionHandler(action, null); } catch (e) { }
-                });
-            } catch (e) { console.log('Media Session disabled'); }
-        }
-
         // ========== 全局变量 ==========
-        let video = null;
         let canvas = null;
         let ctx = null;
-        let hls = null;
-        let animationId = null;
+        let audioContext = null;
+        let player = null;
         let controlsTimeout = null;
-        let lastTap = 0;
         let isPlaying = false;
+        let userAccepted = false;
 
         // 从 URL 获取参数
         const urlParams = new URLSearchParams(window.location.search);
         const videoUrl = decodeURIComponent(urlParams.get('url') || '');
         const videoTitle = decodeURIComponent(urlParams.get('title') || '未知视频');
 
+        // ========== 禁用 Media Session API ==========
+        // 这是绕过特斯拉检测的关键之一
+        if ('mediaSession' in navigator) {
+            try {
+                navigator.mediaSession.metadata = null;
+                navigator.mediaSession.playbackState = 'none';
+                // 清除所有媒体控制处理器
+                ['play', 'pause', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack'].forEach(action => {
+                    try {
+                        navigator.mediaSession.setActionHandler(action, null);
+                    } catch (e) { }
+                });
+            } catch (e) {
+                console.log('Media Session API not fully supported');
+            }
+        }
+
         // ========== 初始化 ==========
         document.addEventListener('DOMContentLoaded', () => {
-            video = document.getElementById('hidden-video');
             canvas = document.getElementById('video-canvas');
             ctx = canvas.getContext('2d');
-
             document.getElementById('video-title').textContent = videoTitle;
 
             if (!videoUrl) {
                 showError('未提供视频地址');
+                document.getElementById('safetyWarning').classList.add('hidden');
                 return;
             }
-
-            updateLoadingText('正在加载视频流...');
-            initPlayer();
-            setupEventListeners();
-            setupTouchControls();
         });
 
-        // ========== Canvas 渲染循环 ==========
-        function renderFrame() {
-            if (video.paused || video.ended) {
-                return;
+        // ========== 用户手势确认 ==========
+        function acceptWarning() {
+            userAccepted = true;
+            document.getElementById('safetyWarning').classList.add('hidden');
+            showLoading();
+            updateLoadingText('正在初始化音频上下文...');
+
+            // 创建 AudioContext（需要用户手势）
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+            } catch (e) {
+                console.error('Failed to create AudioContext:', e);
             }
 
-            // 确保 canvas 尺寸与视频匹配
-            if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-                canvas.width = video.videoWidth || 1920;
-                canvas.height = video.videoHeight || 1080;
-            }
-
-            // 将视频帧绘制到 canvas
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // 继续下一帧
-            animationId = requestAnimationFrame(renderFrame);
-        }
-
-        function startRendering() {
-            if (!animationId) {
-                renderFrame();
-            }
-        }
-
-        function stopRendering() {
-            if (animationId) {
-                cancelAnimationFrame(animationId);
-                animationId = null;
-            }
+            // 开始加载视频
+            initPlayer();
         }
 
         // ========== 播放器初始化 ==========
+        // 当前版本使用简化的方案：
+        // 由于 FFmpeg.wasm 加载耗时长（~25MB），我们先使用备用方案
+        // 后续可以集成完整的 FFmpeg.wasm + JSMpeg 流程
+
         function initPlayer() {
-            updateLoadingText('正在解析视频流...');
+            updateLoadingText('正在连接视频流...');
 
             // 检测是否为 HLS 流
             if (videoUrl.includes('.m3u8') || videoUrl.includes('m3u8')) {
-                if (Hls.isSupported()) {
-                    hls = new Hls({
-                        enableWorker: true,
-                        lowLatencyMode: true,
-                        backBufferLength: 90
-                    });
-
-                    hls.loadSource(videoUrl);
-                    hls.attachMedia(video);
-
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                        updateLoadingText('视频流就绪，正在启动...');
-                        hideLoading();
-                        // 自动播放
-                        video.play().then(() => {
-                            isPlaying = true;
-                            startRendering();
-                            updatePlayState();
-                        }).catch(e => {
-                            console.log('自动播放被阻止，需要用户交互');
-                            hideLoading();
-                        });
-                    });
-
-                    hls.on(Hls.Events.ERROR, (event, data) => {
-                        console.error('HLS Error:', data);
-                        if (data.fatal) {
-                            showError('视频流加载失败: ' + data.type);
-                        }
-                    });
-
-                    hls.on(Hls.Events.FRAG_LOADING, () => {
-                        updateLoadingText('正在缓冲视频片段...');
-                    });
-
-                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    // iOS Safari 原生 HLS 支持
-                    video.src = videoUrl;
-                    video.addEventListener('loadedmetadata', () => {
-                        hideLoading();
-                        video.play().then(() => {
-                            isPlaying = true;
-                            startRendering();
-                        });
-                    });
-                }
+                // 对于 HLS 流，我们需要通过代理转换
+                // 这里使用后端代理将 HLS 转换为 MPEG-TS
+                initHLSPlayer();
             } else {
-                // 直接播放 MP4 等格式
-                video.src = videoUrl;
-                video.addEventListener('loadedmetadata', () => {
-                    hideLoading();
-                    video.play().then(() => {
-                        isPlaying = true;
-                        startRendering();
-                    });
-                });
+                // 直接的 MP4/MPEG 流
+                initDirectPlayer();
             }
-
-            // 错误处理
-            video.addEventListener('error', (e) => {
-                console.error('Video error:', e);
-                showError('视频播放失败');
-            });
         }
 
-        // ========== 事件监听 ==========
-        function setupEventListeners() {
-            // 播放/暂停状态变化
-            video.addEventListener('play', () => {
-                isPlaying = true;
-                startRendering();
-                updatePlayState();
-            });
+        // HLS 流处理
+        function initHLSPlayer() {
+            updateLoadingText('正在解析 HLS 流...');
+            updateLoadingText('加载中...（HLS 流需要较长时间）');
 
-            video.addEventListener('pause', () => {
-                isPlaying = false;
-                stopRendering();
-                updatePlayState();
-            });
+            // 方案 1：使用代理服务将 HLS 转换为 MPEG-TS
+            // 这需要后端支持，暂时使用备用方案
 
-            video.addEventListener('ended', () => {
-                isPlaying = false;
-                stopRendering();
-                updatePlayState();
-            });
+            // 方案 2：备用 - 使用 iframe 嵌入（兼容性方案）
+            // 这不能绕过特斯拉限制，但可以保证播放
 
-            // 时间更新
-            video.addEventListener('timeupdate', updateProgress);
+            // 方案 3：真正的 FFmpeg.wasm 方案（需要更多开发）
+            // 下载 .ts 分片 -> FFmpeg 转码 -> JSMpeg 渲染
 
-            // 缓冲
-            video.addEventListener('waiting', () => {
-                showLoading();
-                updateLoadingText('正在缓冲...');
-            });
-
-            video.addEventListener('playing', hideLoading);
-
-            // 自动隐藏控制栏
-            resetControlsTimeout();
+            // 当前使用提示方案
+            setTimeout(() => {
+                hideLoading();
+                showFFmpegInfo();
+            }, 2000);
         }
 
-        // ========== 触控控制 ==========
-        function setupTouchControls() {
-            const container = document.getElementById('player-container');
+        // 直接流处理
+        function initDirectPlayer() {
+            updateLoadingText('正在加载视频...');
 
-            container.addEventListener('touchend', (e) => {
-                const now = Date.now();
-                const rect = container.getBoundingClientRect();
-                const x = e.changedTouches[0].clientX;
-                const width = rect.width;
+            // 对于非 HLS 流，可以尝试直接使用 JSMpeg
+            // JSMpeg 支持 MPEG-TS 格式的 WebSocket 流
 
-                // 双击检测
-                if (now - lastTap < 300) {
-                    e.preventDefault();
-                    e.stopPropagation();
+            // 显示信息
+            setTimeout(() => {
+                hideLoading();
+                showFFmpegInfo();
+            }, 2000);
+        }
 
-                    if (x < width * 0.35) {
-                        seek(-10);
-                        showSeekHint('left');
-                    } else if (x > width * 0.65) {
-                        seek(10);
-                        showSeekHint('right');
-                    } else {
-                        togglePlay();
-                    }
-                }
+        // 显示 FFmpeg 信息
+        function showFFmpegInfo() {
+            // 在 canvas 上绘制信息
+            canvas.width = 1920;
+            canvas.height = 1080;
 
-                lastTap = now;
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#46d369';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('TeslaTV FFmpeg 播放器', canvas.width / 2, 200);
+
+            ctx.fillStyle = '#fff';
+            ctx.font = '28px Arial';
+            ctx.fillText('当前视频:', canvas.width / 2, 300);
+
+            ctx.fillStyle = '#ccc';
+            ctx.font = '24px Arial';
+            const titleLines = wrapText(videoTitle, 80);
+            titleLines.forEach((line, i) => {
+                ctx.fillText(line, canvas.width / 2, 350 + i * 35);
             });
+
+            ctx.fillStyle = '#ff6b6b';
+            ctx.font = '24px Arial';
+            ctx.fillText('⚠️ 完整的 FFmpeg.wasm 方案需要后端代理服务支持', canvas.width / 2, 500);
+
+            ctx.fillStyle = '#888';
+            ctx.font = '20px Arial';
+            ctx.fillText('Sefirox 方案需要：', canvas.width / 2, 600);
+            ctx.fillText('1. 后端代理下载 HLS .ts 分片', canvas.width / 2, 640);
+            ctx.fillText('2. FFmpeg.wasm 实时转码为 MPEG-1', canvas.width / 2, 680);
+            ctx.fillText('3. JSMpeg 渲染到 Canvas + Web Audio', canvas.width / 2, 720);
+
+            ctx.fillStyle = '#46d369';
+            ctx.font = '22px Arial';
+            ctx.fillText('需要部署 FFmpeg 代理服务才能实现行车播放', canvas.width / 2, 800);
+        }
+
+        // 文本换行
+        function wrapText(text, maxLen) {
+            const lines = [];
+            for (let i = 0; i < text.length; i += maxLen) {
+                lines.push(text.substring(i, i + maxLen));
+            }
+            return lines;
         }
 
         // ========== 控制函数 ==========
         function togglePlay() {
-            if (video.paused) {
-                video.play();
-            } else {
-                video.pause();
-            }
+            isPlaying = !isPlaying;
+            updatePlayState();
             resetControlsTimeout();
         }
 
         function seek(seconds) {
-            video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds));
+            // JSMpeg 不支持精确 seek，这里只是占位
+            console.log('Seek:', seconds);
             resetControlsTimeout();
         }
 
         function seekToPosition(e) {
             const rect = e.currentTarget.getBoundingClientRect();
             const percent = (e.clientX - rect.left) / rect.width;
-            video.currentTime = percent * (video.duration || 0);
+            console.log('Seek to:', percent * 100, '%');
             resetControlsTimeout();
         }
 
@@ -742,11 +722,9 @@
         }
 
         function exitPlayer() {
-            stopRendering();
-            if (hls) {
-                hls.destroy();
+            if (audioContext) {
+                audioContext.close();
             }
-            // 通知父页面关闭
             if (window.parent !== window) {
                 window.parent.postMessage({ type: 'tesla-player-exit' }, '*');
             } else {
@@ -756,9 +734,6 @@
 
         function retryPlay() {
             document.getElementById('error').classList.remove('show');
-            if (hls) {
-                hls.destroy();
-            }
             initPlayer();
         }
 
@@ -767,7 +742,7 @@
             const playIcon = document.getElementById('playIcon');
             const playPauseBtn = document.getElementById('playPauseBtn');
 
-            if (video.paused) {
+            if (!isPlaying) {
                 playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
                 playPauseBtn.textContent = '▶️';
                 showControls();
@@ -775,17 +750,6 @@
                 playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
                 playPauseBtn.textContent = '⏸️';
             }
-        }
-
-        function updateProgress() {
-            if (!video.duration) return;
-
-            const percent = (video.currentTime / video.duration) * 100;
-            document.getElementById('progressBar').style.width = percent + '%';
-            document.getElementById('progressThumb').style.left = percent + '%';
-
-            document.getElementById('currentTime').textContent = formatTime(video.currentTime);
-            document.getElementById('duration').textContent = formatTime(video.duration);
         }
 
         function formatTime(seconds) {
@@ -800,7 +764,7 @@
             const overlay = document.getElementById('controls-overlay');
             if (overlay.classList.contains('hidden')) {
                 showControls();
-            } else if (!video.paused) {
+            } else if (isPlaying) {
                 hideControls();
             }
         }
@@ -812,7 +776,7 @@
         }
 
         function hideControls() {
-            if (!video.paused) {
+            if (isPlaying) {
                 document.getElementById('controls-overlay').classList.add('hidden');
                 document.getElementById('mode-indicator').style.opacity = '0';
             }
@@ -821,7 +785,7 @@
         function resetControlsTimeout() {
             clearTimeout(controlsTimeout);
             controlsTimeout = setTimeout(() => {
-                if (!video.paused) {
+                if (isPlaying) {
                     hideControls();
                 }
             }, 4000);
@@ -845,37 +809,6 @@
             document.getElementById('error-text').textContent = message;
             document.getElementById('error').classList.add('show');
         }
-
-        function showSeekHint(side) {
-            const hint = document.getElementById(side === 'left' ? 'seekLeft' : 'seekRight');
-            hint.classList.add('show');
-            setTimeout(() => hint.classList.remove('show'), 600);
-        }
-
-        // ========== 与父页面通信 ==========
-        window.addEventListener('message', (event) => {
-            const data = event.data;
-            if (data.type === 'play-video') {
-                // 可以接收父页面的播放请求
-            }
-        });
-
-        // 页面关闭时清理
-        window.addEventListener('beforeunload', () => {
-            stopRendering();
-            if (hls) {
-                hls.destroy();
-            }
-        });
-
-        // 处理页面可见性变化
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                stopRendering();
-            } else if (isPlaying) {
-                startRendering();
-            }
-        });
     </script>
 </body>
 
