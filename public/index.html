@@ -2619,14 +2619,16 @@
 
     <script>
         // TeslaTV 全屏播放控制函数
+        // 使用 Canvas 渲染模式绕过特斯拉驾驶检测
         function openTeslaPlayer(videoUrl, videoTitle) {
             var container = document.getElementById('tesla-fullscreen-container');
             var iframe = document.getElementById('tesla-player-iframe');
             if (container && iframe) {
-                var playerUrl = 'tesla-player.html?url=' + encodeURIComponent(videoUrl) + '&title=' + encodeURIComponent(videoTitle || '');
+                // 使用 Canvas 播放器（更稳定的绕过方案）
+                var playerUrl = 'tesla-canvas-player.html?url=' + encodeURIComponent(videoUrl) + '&title=' + encodeURIComponent(videoTitle || '');
                 iframe.src = playerUrl;
                 container.style.display = 'block';
-                console.log('[TeslaTV] 打开全屏播放器:', videoTitle);
+                console.log('[TeslaTV] 打开 Canvas 播放器:', videoTitle);
             }
         }
 
