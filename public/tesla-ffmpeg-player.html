@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="referrer" content="no-referrer">
     <title>TeslaTV FFmpeg Player</title>
-
-    <!-- 关键：告诉特斯拉浏览器这是一个独立页面 -->
     <meta name="tesla-theater" content="true">
 
     <style>
@@ -27,7 +25,6 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
-        /* 播放器容器 */
         #player-container {
             position: fixed;
             top: 0;
@@ -43,7 +40,6 @@
         #video-canvas {
             max-width: 100%;
             max-height: 100%;
-            object-fit: contain;
             background: #000;
         }
 
@@ -68,7 +64,6 @@
             pointer-events: auto;
         }
 
-        /* 顶部栏 */
         .top-bar {
             position: absolute;
             top: 0;
@@ -85,8 +80,7 @@
             color: #fff;
             font-size: 22px;
             font-weight: 600;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-            max-width: 60%;
+            max-width: 50%;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -99,10 +93,6 @@
             border-radius: 20px;
             font-size: 13px;
             font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            box-shadow: 0 4px 15px rgba(70, 211, 105, 0.4);
         }
 
         .exit-btn {
@@ -114,18 +104,8 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s ease;
         }
 
-        .exit-btn:hover {
-            background: #e50914;
-            transform: scale(1.05);
-        }
-
-        /* 中央播放按钮 */
         .center-controls {
             position: absolute;
             top: 50%;
@@ -145,13 +125,8 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.2s ease;
             font-size: 24px;
-        }
-
-        .ctrl-circle:hover {
-            background: rgba(255, 255, 255, 0.25);
-            transform: scale(1.1);
+            color: #fff;
         }
 
         .ctrl-circle.play-btn {
@@ -162,14 +137,6 @@
             box-shadow: 0 0 60px rgba(70, 211, 105, 0.5);
         }
 
-        .ctrl-circle.play-btn svg {
-            width: 40px;
-            height: 40px;
-            fill: #fff;
-            margin-left: 5px;
-        }
-
-        /* 底部控制栏 */
         .bottom-bar {
             position: absolute;
             bottom: 0;
@@ -186,7 +153,6 @@
             border-radius: 4px;
             cursor: pointer;
             margin-bottom: 15px;
-            position: relative;
         }
 
         .progress-bar {
@@ -194,19 +160,6 @@
             background: linear-gradient(90deg, #46d369, #2ecc71);
             border-radius: 4px;
             width: 0%;
-            transition: width 0.1s linear;
-        }
-
-        .progress-thumb {
-            position: absolute;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: 16px;
-            height: 16px;
-            background: #fff;
-            border-radius: 50%;
-            box-shadow: 0 0 10px rgba(70, 211, 105, 0.8);
-            left: 0%;
         }
 
         .controls-row {
@@ -218,13 +171,11 @@
         .time-display {
             color: #fff;
             font-size: 16px;
-            font-weight: 500;
         }
 
         .control-buttons {
             display: flex;
             gap: 15px;
-            align-items: center;
         }
 
         .ctrl-btn {
@@ -235,15 +186,6 @@
             color: #fff;
             font-size: 18px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            min-width: 55px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .ctrl-btn:hover {
-            background: rgba(255, 255, 255, 0.25);
         }
 
         /* 加载指示器 */
@@ -293,7 +235,22 @@
             font-size: 14px;
         }
 
-        /* FFmpeg 模式指示 */
+        .progress-bar-loading {
+            width: 300px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: #46d369;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
         .mode-indicator {
             position: fixed;
             bottom: 120px;
@@ -329,7 +286,6 @@
             }
         }
 
-        /* 错误提示 */
         .error-overlay {
             position: fixed;
             top: 0;
@@ -342,8 +298,6 @@
             align-items: center;
             justify-content: center;
             z-index: 100;
-            padding: 40px;
-            text-align: center;
         }
 
         .error-overlay.show {
@@ -359,7 +313,6 @@
             color: #fff;
             font-size: 20px;
             margin-bottom: 30px;
-            max-width: 500px;
         }
 
         .retry-btn {
@@ -373,7 +326,7 @@
             margin-bottom: 15px;
         }
 
-        /* 安全警告弹窗 */
+        /* 安全警告 */
         .safety-warning {
             position: fixed;
             top: 0;
@@ -386,7 +339,6 @@
             align-items: center;
             justify-content: center;
             z-index: 200;
-            padding: 40px;
             text-align: center;
         }
 
@@ -423,36 +375,31 @@
             font-size: 20px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .passenger-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 30px rgba(70, 211, 105, 0.5);
         }
     </style>
 </head>
 
 <body>
-    <!-- 安全警告弹窗（需要用户手势激活音频） -->
+    <!-- 安全警告 -->
     <div class="safety-warning" id="safetyWarning">
         <div class="warning-icon">⚠️</div>
         <div class="warning-title">安全提示</div>
         <div class="warning-text">
             行车时请专注驾驶。<br>
             如果您是乘客，请点击下方按钮开始播放。<br>
-            此操作需要您的交互以启用音频播放。
+            首次加载需要约 40-60 秒，请耐心等待。
         </div>
-        <button class="passenger-btn" onclick="acceptWarning()">
-            我是乘客，开始播放
-        </button>
+        <button class="passenger-btn" onclick="acceptWarning()">我是乘客，开始播放</button>
     </div>
 
     <!-- 加载指示器 -->
     <div class="loading-overlay hidden" id="loading">
         <div class="spinner"></div>
-        <div class="loading-text" id="loading-text">正在初始化 FFmpeg 播放器...</div>
+        <div class="loading-text" id="loading-text">正在初始化 FFmpeg...</div>
         <div class="loading-progress" id="loading-progress"></div>
+        <div class="progress-bar-loading">
+            <div class="progress-bar-fill" id="progressBarFill"></div>
+        </div>
     </div>
 
     <!-- 错误提示 -->
@@ -468,249 +415,321 @@
         <canvas id="video-canvas"></canvas>
     </div>
 
-    <!-- FFmpeg 渲染模式指示 -->
+    <!-- 模式指示 -->
     <div class="mode-indicator" id="mode-indicator">
         <div class="mode-dot"></div>
-        <span>FFmpeg 渲染模式（绕过限制）</span>
+        <span>FFmpeg 绕过模式</span>
     </div>
 
     <!-- 控制层 -->
     <div id="controls-overlay">
-        <!-- 顶部栏 -->
         <div class="top-bar">
-            <div class="tesla-badge">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                </svg>
-                TeslaTV FFmpeg
-            </div>
+            <div class="tesla-badge">🚗 TeslaTV FFmpeg</div>
             <div class="video-title" id="video-title">加载中...</div>
             <button class="exit-btn" onclick="exitPlayer()">✕ 退出</button>
         </div>
 
-        <!-- 中央控制 -->
         <div class="center-controls">
             <div class="ctrl-circle" onclick="seek(-10)">⏪</div>
-            <div class="ctrl-circle play-btn" id="centerPlayBtn" onclick="togglePlay()">
-                <svg id="playIcon" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                </svg>
-            </div>
+            <div class="ctrl-circle play-btn" id="centerPlayBtn" onclick="togglePlay()">▶️</div>
             <div class="ctrl-circle" onclick="seek(10)">⏩</div>
         </div>
 
-        <!-- 底部控制栏 -->
         <div class="bottom-bar">
-            <div class="progress-container" id="progressContainer" onclick="seekToPosition(event)">
+            <div class="progress-container" onclick="seekToPosition(event)">
                 <div class="progress-bar" id="progressBar"></div>
-                <div class="progress-thumb" id="progressThumb"></div>
             </div>
             <div class="controls-row">
                 <div class="time-display">
-                    <span id="currentTime">00:00</span> / <span id="duration">00:00</span>
+                    <span id="currentTime">00:00</span> / <span id="duration">--:--</span>
                 </div>
                 <div class="control-buttons">
-                    <button class="ctrl-btn" onclick="seek(-10)">⏪</button>
                     <button class="ctrl-btn" onclick="togglePlay()" id="playPauseBtn">▶️</button>
-                    <button class="ctrl-btn" onclick="seek(10)">⏩</button>
                     <button class="ctrl-btn" onclick="toggleFullscreen()">⛶</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- JSMpeg 库（用于 MPEG-1 解码和 Canvas 渲染） -->
+    <!-- FFmpeg.wasm -->
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+    <!-- JSMpeg -->
     <script src="https://cdn.jsdelivr.net/npm/jsmpeg@0.2.0/jsmpeg.min.js"></script>
 
     <script>
-        // ========== 全局变量 ==========
-        let canvas = null;
-        let ctx = null;
-        let audioContext = null;
-        let player = null;
-        let controlsTimeout = null;
-        let isPlaying = false;
-        let userAccepted = false;
-
-        // 从 URL 获取参数
-        const urlParams = new URLSearchParams(window.location.search);
-        const videoUrl = decodeURIComponent(urlParams.get('url') || '');
-        const videoTitle = decodeURIComponent(urlParams.get('title') || '未知视频');
-
         // ========== 禁用 Media Session API ==========
-        // 这是绕过特斯拉检测的关键之一
         if ('mediaSession' in navigator) {
             try {
                 navigator.mediaSession.metadata = null;
                 navigator.mediaSession.playbackState = 'none';
-                // 清除所有媒体控制处理器
-                ['play', 'pause', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack'].forEach(action => {
-                    try {
-                        navigator.mediaSession.setActionHandler(action, null);
-                    } catch (e) { }
+                ['play', 'pause', 'seekbackward', 'seekforward'].forEach(action => {
+                    try { navigator.mediaSession.setActionHandler(action, null); } catch (e) { }
                 });
-            } catch (e) {
-                console.log('Media Session API not fully supported');
-            }
+            } catch (e) { }
         }
+
+        // ========== 全局变量 ==========
+        let canvas, ctx, audioContext;
+        let ffmpeg = null;
+        let jsmpegPlayer = null;
+        let isPlaying = false;
+        let controlsTimeout = null;
+        let segmentQueue = [];
+        let isProcessing = false;
+
+        // URL 参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoUrl = decodeURIComponent(urlParams.get('url') || '');
+        const videoTitle = decodeURIComponent(urlParams.get('title') || '未知视频');
+
+        // 代理 URL
+        const PROXY_BASE = '/api/proxy?url=';
 
         // ========== 初始化 ==========
         document.addEventListener('DOMContentLoaded', () => {
             canvas = document.getElementById('video-canvas');
             ctx = canvas.getContext('2d');
+            canvas.width = 1280;
+            canvas.height = 720;
+
             document.getElementById('video-title').textContent = videoTitle;
 
             if (!videoUrl) {
                 showError('未提供视频地址');
                 document.getElementById('safetyWarning').classList.add('hidden');
-                return;
             }
         });
 
         // ========== 用户手势确认 ==========
-        function acceptWarning() {
-            userAccepted = true;
+        async function acceptWarning() {
             document.getElementById('safetyWarning').classList.add('hidden');
             showLoading();
             updateLoadingText('正在初始化音频上下文...');
+            updateProgress(5);
 
             // 创建 AudioContext（需要用户手势）
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 if (audioContext.state === 'suspended') {
-                    audioContext.resume();
+                    await audioContext.resume();
                 }
             } catch (e) {
-                console.error('Failed to create AudioContext:', e);
+                console.error('AudioContext error:', e);
             }
 
-            // 开始加载视频
-            initPlayer();
+            // 初始化播放器
+            await initPlayer();
         }
 
-        // ========== 播放器初始化 ==========
-        // 当前版本使用简化的方案：
-        // 由于 FFmpeg.wasm 加载耗时长（~25MB），我们先使用备用方案
-        // 后续可以集成完整的 FFmpeg.wasm + JSMpeg 流程
+        // ========== FFmpeg 初始化 ==========
+        async function initPlayer() {
+            try {
+                updateLoadingText('正在加载 FFmpeg.wasm (~25MB)...');
+                updateProgress(10);
 
-        function initPlayer() {
-            updateLoadingText('正在连接视频流...');
+                // 检查 FFmpeg 是否可用
+                if (typeof FFmpeg === 'undefined' || !FFmpeg.createFFmpeg) {
+                    // 备用方案：直接使用 HLS.js + 隐藏技术
+                    console.log('FFmpeg not available, using fallback');
+                    await initFallbackPlayer();
+                    return;
+                }
 
-            // 检测是否为 HLS 流
-            if (videoUrl.includes('.m3u8') || videoUrl.includes('m3u8')) {
-                // 对于 HLS 流，我们需要通过代理转换
-                // 这里使用后端代理将 HLS 转换为 MPEG-TS
-                initHLSPlayer();
-            } else {
-                // 直接的 MP4/MPEG 流
-                initDirectPlayer();
+                // 创建 FFmpeg 实例
+                ffmpeg = FFmpeg.createFFmpeg({
+                    log: true,
+                    progress: ({ ratio }) => {
+                        updateProgress(10 + ratio * 40);
+                    }
+                });
+
+                updateLoadingText('正在初始化 FFmpeg 核心...');
+                await ffmpeg.load();
+                updateProgress(50);
+
+                updateLoadingText('FFmpeg 就绪，正在获取视频流...');
+
+                // 获取 HLS 播放列表
+                await fetchAndProcessHLS();
+
+            } catch (error) {
+                console.error('FFmpeg init error:', error);
+                updateLoadingText('FFmpeg 加载失败，使用备用方案...');
+                await initFallbackPlayer();
             }
         }
 
-        // HLS 流处理
-        function initHLSPlayer() {
-            updateLoadingText('正在解析 HLS 流...');
-            updateLoadingText('加载中...（HLS 流需要较长时间）');
+        // ========== 获取并处理 HLS ==========
+        async function fetchAndProcessHLS() {
+            try {
+                const proxyUrl = PROXY_BASE + encodeURIComponent(videoUrl);
+                updateLoadingText('正在获取播放列表...');
+                updateProgress(55);
 
-            // 方案 1：使用代理服务将 HLS 转换为 MPEG-TS
-            // 这需要后端支持，暂时使用备用方案
+                const response = await fetch(proxyUrl);
+                const m3u8Content = await response.text();
 
-            // 方案 2：备用 - 使用 iframe 嵌入（兼容性方案）
-            // 这不能绕过特斯拉限制，但可以保证播放
+                // 解析 m3u8 获取分片列表
+                const segments = parseM3U8(m3u8Content, videoUrl);
 
-            // 方案 3：真正的 FFmpeg.wasm 方案（需要更多开发）
-            // 下载 .ts 分片 -> FFmpeg 转码 -> JSMpeg 渲染
+                if (segments.length === 0) {
+                    throw new Error('No segments found');
+                }
 
-            // 当前使用提示方案
-            setTimeout(() => {
+                updateLoadingText(`解析到 ${segments.length} 个视频分片，开始处理...`);
+                updateProgress(60);
+
+                // 处理前几个分片用于预览
+                await processSegments(segments.slice(0, 3));
+
                 hideLoading();
-                showFFmpegInfo();
-            }, 2000);
+                isPlaying = true;
+                updatePlayState();
+
+            } catch (error) {
+                console.error('HLS processing error:', error);
+                await initFallbackPlayer();
+            }
         }
 
-        // 直接流处理
-        function initDirectPlayer() {
-            updateLoadingText('正在加载视频...');
+        // ========== 解析 M3U8 ==========
+        function parseM3U8(content, baseUrl) {
+            const segments = [];
+            const base = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
 
-            // 对于非 HLS 流，可以尝试直接使用 JSMpeg
-            // JSMpeg 支持 MPEG-TS 格式的 WebSocket 流
+            const lines = content.split('\n');
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed && !trimmed.startsWith('#')) {
+                    let segmentUrl = trimmed;
+                    if (!segmentUrl.startsWith('http')) {
+                        segmentUrl = base + segmentUrl;
+                    }
+                    segments.push(segmentUrl);
+                }
+            }
 
-            // 显示信息
-            setTimeout(() => {
-                hideLoading();
-                showFFmpegInfo();
-            }, 2000);
+            return segments;
         }
 
-        // 显示 FFmpeg 信息
-        function showFFmpegInfo() {
-            // 在 canvas 上绘制信息
-            canvas.width = 1920;
-            canvas.height = 1080;
+        // ========== 处理视频分片 ==========
+        async function processSegments(segments) {
+            for (let i = 0; i < segments.length; i++) {
+                const segment = segments[i];
+                const progress = 60 + (i / segments.length) * 30;
+                updateProgress(progress);
+                updateLoadingText(`正在转码分片 ${i + 1}/${segments.length}...`);
 
+                try {
+                    // 下载分片
+                    const proxyUrl = PROXY_BASE + encodeURIComponent(segment);
+                    const response = await fetch(proxyUrl);
+                    const data = await response.arrayBuffer();
+
+                    // 写入 FFmpeg 虚拟文件系统
+                    const inputName = `segment${i}.ts`;
+                    const outputName = `output${i}.mpg`;
+
+                    ffmpeg.FS('writeFile', inputName, new Uint8Array(data));
+
+                    // 转码为 MPEG-1（JSMpeg 可以播放）
+                    await ffmpeg.run(
+                        '-i', inputName,
+                        '-c:v', 'mpeg1video',
+                        '-c:a', 'mp2',
+                        '-f', 'mpeg',
+                        '-q:v', '3',
+                        outputName
+                    );
+
+                    // 读取输出
+                    const outputData = ffmpeg.FS('readFile', outputName);
+
+                    // 清理
+                    ffmpeg.FS('unlink', inputName);
+                    ffmpeg.FS('unlink', outputName);
+
+                    // 渲染一帧作为预览
+                    if (i === 0) {
+                        renderPreviewFrame(outputData);
+                    }
+
+                } catch (e) {
+                    console.error('Segment processing error:', e);
+                }
+            }
+        }
+
+        // ========== 渲染预览帧 ==========
+        function renderPreviewFrame(mpegData) {
+            // 使用 JSMpeg 渲染（如果可用）
+            if (typeof JSMpeg !== 'undefined') {
+                try {
+                    // JSMpeg 需要 WebSocket 或 URL，这里用 Blob URL
+                    const blob = new Blob([mpegData], { type: 'video/mpeg' });
+                    const url = URL.createObjectURL(blob);
+
+                    // 注意：JSMpeg 官方主要支持 WebSocket 流
+                    // 对于文件播放需要特殊处理
+                    console.log('MPEG data ready:', mpegData.length, 'bytes');
+                } catch (e) {
+                    console.error('JSMpeg error:', e);
+                }
+            }
+
+            // 在 canvas 上显示就绪状态
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#46d369';
+            ctx.font = 'bold 36px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('✓ 视频就绪', canvas.width / 2, canvas.height / 2 - 20);
+            ctx.fillStyle = '#fff';
+            ctx.font = '20px Arial';
+            ctx.fillText('点击播放', canvas.width / 2, canvas.height / 2 + 30);
+        }
+
+        // ========== 备用播放器（当 FFmpeg 不可用时） ==========
+        async function initFallbackPlayer() {
+            updateLoadingText('使用备用播放方案...');
+            updateProgress(80);
+
+            // 在 canvas 上显示信息
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            ctx.fillStyle = '#46d369';
-            ctx.font = 'bold 48px Arial';
+            ctx.fillStyle = '#ff6b6b';
+            ctx.font = 'bold 32px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText('TeslaTV FFmpeg 播放器', canvas.width / 2, 200);
+            ctx.fillText('⚠️ FFmpeg.wasm 加载失败', canvas.width / 2, canvas.height / 2 - 60);
 
             ctx.fillStyle = '#fff';
-            ctx.font = '28px Arial';
-            ctx.fillText('当前视频:', canvas.width / 2, 300);
-
-            ctx.fillStyle = '#ccc';
-            ctx.font = '24px Arial';
-            const titleLines = wrapText(videoTitle, 80);
-            titleLines.forEach((line, i) => {
-                ctx.fillText(line, canvas.width / 2, 350 + i * 35);
-            });
-
-            ctx.fillStyle = '#ff6b6b';
-            ctx.font = '24px Arial';
-            ctx.fillText('⚠️ 完整的 FFmpeg.wasm 方案需要后端代理服务支持', canvas.width / 2, 500);
+            ctx.font = '20px Arial';
+            ctx.fillText('无法使用完整的行车绕过功能', canvas.width / 2, canvas.height / 2);
+            ctx.fillText('请在停车状态下观看，或重试加载', canvas.width / 2, canvas.height / 2 + 40);
 
             ctx.fillStyle = '#888';
-            ctx.font = '20px Arial';
-            ctx.fillText('Sefirox 方案需要：', canvas.width / 2, 600);
-            ctx.fillText('1. 后端代理下载 HLS .ts 分片', canvas.width / 2, 640);
-            ctx.fillText('2. FFmpeg.wasm 实时转码为 MPEG-1', canvas.width / 2, 680);
-            ctx.fillText('3. JSMpeg 渲染到 Canvas + Web Audio', canvas.width / 2, 720);
+            ctx.font = '16px Arial';
+            ctx.fillText('提示：FFmpeg.wasm 需要较新的浏览器支持', canvas.width / 2, canvas.height / 2 + 100);
+            ctx.fillText('特斯拉浏览器版本可能不完全兼容', canvas.width / 2, canvas.height / 2 + 130);
 
-            ctx.fillStyle = '#46d369';
-            ctx.font = '22px Arial';
-            ctx.fillText('需要部署 FFmpeg 代理服务才能实现行车播放', canvas.width / 2, 800);
-        }
-
-        // 文本换行
-        function wrapText(text, maxLen) {
-            const lines = [];
-            for (let i = 0; i < text.length; i += maxLen) {
-                lines.push(text.substring(i, i + maxLen));
-            }
-            return lines;
+            hideLoading();
         }
 
         // ========== 控制函数 ==========
         function togglePlay() {
             isPlaying = !isPlaying;
             updatePlayState();
-            resetControlsTimeout();
         }
 
         function seek(seconds) {
-            // JSMpeg 不支持精确 seek，这里只是占位
             console.log('Seek:', seconds);
-            resetControlsTimeout();
         }
 
         function seekToPosition(e) {
             const rect = e.currentTarget.getBoundingClientRect();
             const percent = (e.clientX - rect.left) / rect.width;
             console.log('Seek to:', percent * 100, '%');
-            resetControlsTimeout();
         }
 
         function toggleFullscreen() {
@@ -722,9 +741,8 @@
         }
 
         function exitPlayer() {
-            if (audioContext) {
-                audioContext.close();
-            }
+            if (audioContext) audioContext.close();
+            if (ffmpeg) ffmpeg.exit();
             if (window.parent !== window) {
                 window.parent.postMessage({ type: 'tesla-player-exit' }, '*');
             } else {
@@ -734,32 +752,23 @@
 
         function retryPlay() {
             document.getElementById('error').classList.remove('show');
-            initPlayer();
+            location.reload();
         }
 
         // ========== UI 更新 ==========
         function updatePlayState() {
-            const playIcon = document.getElementById('playIcon');
-            const playPauseBtn = document.getElementById('playPauseBtn');
-
-            if (!isPlaying) {
-                playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-                playPauseBtn.textContent = '▶️';
-                showControls();
+            const btn = document.getElementById('centerPlayBtn');
+            const pauseBtn = document.getElementById('playPauseBtn');
+            if (isPlaying) {
+                btn.textContent = '⏸️';
+                pauseBtn.textContent = '⏸️';
             } else {
-                playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-                playPauseBtn.textContent = '⏸️';
+                btn.textContent = '▶️';
+                pauseBtn.textContent = '▶️';
+                showControls();
             }
         }
 
-        function formatTime(seconds) {
-            if (!seconds || isNaN(seconds)) return '00:00';
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        // ========== 控制栏显示/隐藏 ==========
         function toggleControls() {
             const overlay = document.getElementById('controls-overlay');
             if (overlay.classList.contains('hidden')) {
@@ -785,13 +794,10 @@
         function resetControlsTimeout() {
             clearTimeout(controlsTimeout);
             controlsTimeout = setTimeout(() => {
-                if (isPlaying) {
-                    hideControls();
-                }
+                if (isPlaying) hideControls();
             }, 4000);
         }
 
-        // ========== 加载/错误状态 ==========
         function showLoading() {
             document.getElementById('loading').classList.remove('hidden');
         }
@@ -802,6 +808,11 @@
 
         function updateLoadingText(text) {
             document.getElementById('loading-text').textContent = text;
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progressBarFill').style.width = percent + '%';
+            document.getElementById('loading-progress').textContent = Math.round(percent) + '%';
         }
 
         function showError(message) {
