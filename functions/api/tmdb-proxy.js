@@ -1,6 +1,10 @@
 /**
  * TeslaTV - Cloudflare Pages Function: /api/tmdb-proxy
  * TMDB API 代理
+ * 
+ * 支持两种模式：
+ * 1. 如果配置了 TMDB_PROXY_URL，通过反代访问（适合大陆用户）
+ * 2. 否则直接访问 TMDB 官方 API（需要服务器能访问 TMDB）
  */
 
 export async function onRequest(context) {
@@ -34,7 +38,7 @@ export async function onRequest(context) {
         });
     }
 
-    // 构建 TMDB URL
+    // 构建请求参数
     const params = new URLSearchParams();
     params.set('api_key', TMDB_API_KEY);
     params.set('language', 'zh-CN');
@@ -46,7 +50,20 @@ export async function onRequest(context) {
         }
     }
 
-    const tmdbUrl = `https://api.themoviedb.org/3${tmdbPath}?${params.toString()}`;
+    // 判断使用反代还是直连
+    // 如果配置了 TMDB_PROXY_URL，通过反代访问（适合大陆用户）
+    let tmdbUrl;
+    const TMDB_PROXY_URL = env.TMDB_PROXY_URL;
+
+    if (TMDB_PROXY_URL) {
+        // 使用用户配置的反代
+        const proxyBase = TMDB_PROXY_URL.replace(/\/$/, '');
+        tmdbUrl = `${proxyBase}/api/3${tmdbPath}?${params.toString()}`;
+        console.log('[TMDB Proxy] Using custom proxy:', proxyBase);
+    } else {
+        // 直连 TMDB（Cloudflare Workers 可以访问）
+        tmdbUrl = `https://api.themoviedb.org/3${tmdbPath}?${params.toString()}`;
+    }
 
     try {
         const response = await fetch(tmdbUrl, {
@@ -56,13 +73,27 @@ export async function onRequest(context) {
             cf: { cacheTtl: 36000 } // 缓存 10 小时
         });
 
+        if (!response.ok) {
+            console.error('[TMDB Proxy] Request failed:', response.status, response.statusText);
+            return new Response(JSON.stringify({
+                error: 'TMDB request failed',
+                status: response.status
+            }), {
+                status: response.status,
+                headers: corsHeaders
+            });
+        }
+
         const data = await response.json();
         return new Response(JSON.stringify(data), {
             headers: corsHeaders
         });
     } catch (error) {
-        console.error('TMDB proxy error:', error.message);
-        return new Response(JSON.stringify({ error: 'Proxy request failed' }), {
+        console.error('[TMDB Proxy] Error:', error.message);
+        return new Response(JSON.stringify({
+            error: 'Proxy request failed',
+            message: error.message
+        }), {
             status: 500,
             headers: corsHeaders
         });
