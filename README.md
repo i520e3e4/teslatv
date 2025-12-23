@@ -1,7 +1,7 @@
 # 🚗 TeslaTV - 特斯拉车载影视播放系统
 
 <p align="center">
-  <img src="public/tesla-icon.svg" width="80" alt="TeslaTV Logo">
+  <img src="public/tesla-icon.png" width="80" alt="TeslaTV Logo">
 </p>
 
 <p align="center">
