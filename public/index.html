@@ -3507,15 +3507,23 @@
                         const config = await res.json();
                         TMDB_API_KEY = config.tmdb_api_key;
 
-                        // Vercel 兼容性检测
+                        // Vercel/Cloudflare 无本地缓存，根据是否有反代决定图片源
                         if (config.enable_local_image_cache === false) {
-                            console.log('[Config] Vercel 环境检测：禁用本地图片缓存，使用官方源');
-                            // 回退到官方 CDN
-                            this.TMDB_IMG_URL = "https://image.tmdb.org/t/p/w342";
-                            this.TMDB_BACKDROP_URL = "https://image.tmdb.org/t/p/original";
+                            if (config.tmdb_proxy_url) {
+                                // 有反代：使用反代图片地址（大陆用户）
+                                const proxyBase = config.tmdb_proxy_url.replace(/\/$/, '');
+                                console.log('[Config] 使用 TMDB 反代图片源:', proxyBase);
+                                this.TMDB_IMG_URL = proxyBase + '/t/p/w342';
+                                this.TMDB_BACKDROP_URL = proxyBase + '/t/p/original';
+                            } else {
+                                // 无反代：回退到官方 CDN（海外用户）
+                                console.log('[Config] 使用 TMDB 官方图片源');
+                                this.TMDB_IMG_URL = "https://image.tmdb.org/t/p/w342";
+                                this.TMDB_BACKDROP_URL = "https://image.tmdb.org/t/p/original";
+                            }
                         }
 
-                        // 如果配置了反代地址，进行 IP 检测并切换
+                        // 如果配置了反代地址，进行 IP 检测并切换 API 基础 URL
                         if (config.tmdb_proxy_url) {
                             updateStatus('正在检测网络环境...');
                             await this.setupTmdbProxy(config.tmdb_proxy_url);
