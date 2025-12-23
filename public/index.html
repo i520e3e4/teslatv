@@ -5658,7 +5658,51 @@
         <iframe id="tesla-player-iframe" style="width:100%; height:100%; border:none;" allowfullscreen></iframe>
     </div>
 
-    <!-- Tesla 播放器函数注释：实际函数定义在第 2621 行 (使用 tesla-canvas-player.html) -->
+    <!-- Tesla 播放器函数 -->
+    <script data-cfasync="false">
+        /**
+         * TeslaTV 行车观影播放器
+         * 使用 FFmpeg.wasm + JSMpeg 技术绕过特斯拉视频限制
+         */
+        function openTeslaPlayer(videoUrl, videoTitle) {
+            console.log('[TeslaTV] 打开 FFmpeg 播放器');
+            console.log('[TeslaTV] URL:', videoUrl?.substring(0, 50) + '...');
+            console.log('[TeslaTV] Title:', videoTitle);
+
+            const container = document.getElementById('tesla-fullscreen-container');
+            const iframe = document.getElementById('tesla-player-iframe');
+
+            if (!container || !iframe) {
+                console.error('[TeslaTV] 播放器容器不存在');
+                return;
+            }
+
+            // 构建播放器 URL（使用 FFmpeg 版本）
+            const playerUrl = '/tesla-ffmpeg-player.html?' +
+                'url=' + encodeURIComponent(videoUrl) +
+                '&title=' + encodeURIComponent(videoTitle || '未知视频');
+
+            iframe.src = playerUrl;
+            container.style.display = 'block';
+
+            console.log('[TeslaTV] 播放器已启动:', playerUrl.substring(0, 80) + '...');
+        }
+
+        // 关闭 Tesla 播放器
+        function closeTeslaPlayer() {
+            const container = document.getElementById('tesla-fullscreen-container');
+            const iframe = document.getElementById('tesla-player-iframe');
+
+            if (container) container.style.display = 'none';
+            if (iframe) iframe.src = 'about:blank';
+
+            console.log('[TeslaTV] 播放器已关闭');
+        }
+
+        // 暴露到全局
+        window.openTeslaPlayer = openTeslaPlayer;
+        window.closeTeslaPlayer = closeTeslaPlayer;
+    </script>
 
     <!-- Register Service Worker with Auto-Update -->
     <script data-cfasync="false">
