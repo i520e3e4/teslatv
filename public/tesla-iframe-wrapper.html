@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Tesla/移动端全屏模式 meta 标签 -->
+    <meta name="x5-fullscreen" content="true">
+    <meta name="x5-page-mode" content="app">
+    <meta name="full-screen" content="yes">
+    <meta name="browsermode" content="application">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>TeslaTV Player Wrapper</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { 
+            width: 100%; 
+            height: 100%; 
+            background: #000; 
+            overflow: hidden; 
+        }
+        /* 预缓冲 iframe - 隐藏的占位元素 */
+        #buffer-frame { 
+            position: absolute; 
+            width: 1px; 
+            height: 1px; 
+            opacity: 0; 
+            pointer-events: none;
+        }
+        /* 安装占位 iframe */
+        #install-frame {
+            display: none;
+        }
+        /* 实际播放器 iframe */
+        #player-frame { 
+            width: 100%; 
+            height: 100%; 
+            border: none; 
+        }
+    </style>
+</head>
+<body>
+    <!-- 预缓冲 iframe（模仿 tesla-netflix.com 的 prestrain.html） -->
+    <iframe id="buffer-frame" src="prestrain.html"></iframe>
+    
+    <!-- 安装占位 iframe（模仿 tesla-netflix.com 的 install iframe） -->
+    <iframe id="install-frame" src=""></iframe>
+    
+    <!-- 实际播放器 iframe，带 sandbox 限制 -->
+    <iframe id="player-frame"
+        sandbox="allow-same-origin allow-forms allow-scripts"
+        allowfullscreen="allowfullscreen"
+        mozallowfullscreen="mozallowfullscreen"
+        msallowfullscreen="msallowfullscreen"
+        oallowfullscreen="oallowfullscreen"
+        webkitallowfullscreen="webkitallowfullscreen"
+        allow="autoplay; fullscreen; picture-in-picture">
+    </iframe>
+    
+    <script>
+        // 解析 URL 参数
+        const params = new URLSearchParams(window.location.search);
+        const videoUrl = params.get('url') || '';
+        const videoTitle = params.get('title') || '未知视频';
+        const playerType = params.get('player') || 'tesla-canvas-player.html';
+        
+        // 设置播放器 URL
+        const playerFrame = document.getElementById('player-frame');
+        if (videoUrl) {
+            const playerSrc = playerType + 
+                '?url=' + encodeURIComponent(videoUrl) + 
+                '&title=' + encodeURIComponent(videoTitle);
+            playerFrame.src = playerSrc;
+            console.log('[TeslaTV Wrapper] 加载播放器:', playerType);
+        } else {
+            console.error('[TeslaTV Wrapper] 未提供视频 URL');
+        }
+        
+        // 监听来自播放器的退出消息，转发给父页面
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'tesla-player-exit') {
+                console.log('[TeslaTV Wrapper] 收到退出消息，转发给父页面');
+                window.parent.postMessage({ type: 'tesla-player-exit' }, '*');
+            }
+        });
+    </script>
+</body>
+</html>

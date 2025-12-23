@@ -2601,7 +2601,8 @@
 <body>
     <!-- TeslaTV 全屏 iframe 播放容器 (用于行车观影) -->
     <div id="tesla-fullscreen-container" style="display: none;">
-        <iframe id="tesla-player-iframe" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen>
+        <iframe id="tesla-player-iframe" sandbox="allow-same-origin allow-forms allow-scripts allow-popups"
+            allow="autoplay; fullscreen; picture-in-picture" allowfullscreen>
         </iframe>
         <button id="tesla-exit-btn" onclick="closeTeslaPlayer()">
             ✕ 退出播放
@@ -5655,17 +5656,19 @@
     <!-- Tesla 全屏播放器容器 -->
     <div id="tesla-fullscreen-container"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background:#000;">
-        <iframe id="tesla-player-iframe" style="width:100%; height:100%; border:none;" allowfullscreen></iframe>
+        <iframe id="tesla-player-iframe" sandbox="allow-same-origin allow-forms allow-scripts allow-popups"
+            style="width:100%; height:100%; border:none;" allowfullscreen></iframe>
     </div>
 
     <!-- Tesla 播放器函数 -->
     <script data-cfasync="false">
         /**
          * TeslaTV 行车观影播放器
-         * 使用 FFmpeg.wasm + JSMpeg 技术绕过特斯拉视频限制
+         * 使用多层 iframe 嵌套技术绕过特斯拉视频限制
+         * 架构: index.html -> tesla-iframe-wrapper.html -> tesla-canvas-player.html
          */
         function openTeslaPlayer(videoUrl, videoTitle) {
-            console.log('[TeslaTV] 打开 FFmpeg 播放器');
+            console.log('[TeslaTV] 打开多层嵌套播放器');
             console.log('[TeslaTV] URL:', videoUrl?.substring(0, 50) + '...');
             console.log('[TeslaTV] Title:', videoTitle);
 
@@ -5677,15 +5680,18 @@
                 return;
             }
 
-            // 构建播放器 URL（使用 FFmpeg 版本）
-            const playerUrl = '/tesla-ffmpeg-player.html?' +
+            // 构建播放器 URL（使用多层 iframe 嵌套方案）
+            // 第一层: tesla-iframe-wrapper.html (中间层)
+            // 第二层: tesla-canvas-player.html (实际播放器)
+            const playerUrl = '/tesla-iframe-wrapper.html?' +
                 'url=' + encodeURIComponent(videoUrl) +
-                '&title=' + encodeURIComponent(videoTitle || '未知视频');
+                '&title=' + encodeURIComponent(videoTitle || '未知视频') +
+                '&player=tesla-canvas-player.html';
 
             iframe.src = playerUrl;
             container.style.display = 'block';
 
-            console.log('[TeslaTV] 播放器已启动:', playerUrl.substring(0, 80) + '...');
+            console.log('[TeslaTV] 多层嵌套播放器已启动');
         }
 
         // 关闭 Tesla 播放器
