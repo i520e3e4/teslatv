@@ -5676,14 +5676,14 @@
 
         // 可用的解析页列表（优先级从高到低）
         const PARSER_APIS = [
-            // ===== 自建解析（首选，更稳定）=====
-            { name: '自建解析', url: 'https://player.686423.xyz/player.html?url=' },
-
-            // ===== 第三方解析（备用）=====
+            // ===== 第三方解析（主用）=====
             { name: '火狐解析', url: 'https://hhjiexi.com/play/?url=' },
             { name: 'JSON解析', url: 'https://jx.jsonplayer.com/player/?url=' },
             { name: '虾米解析', url: 'https://dm.xmflv.com/?url=' },
-            { name: '爱看解析', url: 'https://jx.dk47.com/?url=' }
+            { name: '爱看解析', url: 'https://jx.dk47.com/?url=' },
+
+            // ===== 自建解析（暂时禁用，Cloudflare Pages 部署问题待修复）=====
+            // { name: '自建解析', url: 'https://player.686423.xyz/?url=' }
         ];
 
         // 当前使用的解析 API 索引

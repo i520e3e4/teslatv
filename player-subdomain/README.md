@@ -51,7 +51,9 @@ nginx -t && systemctl reload nginx
 
 部署后访问：
 ```
-https://player.686423.xyz/player.html?url=https://test.m3u8
+https://player.686423.xyz/?url=https://test.m3u8
 ```
 
 如果能看到播放器界面，说明部署成功。
+
+> **注意**：`index.html` 是默认首页，直接访问根域名即可。
