@@ -2600,11 +2600,16 @@
 
 <body>
     <!-- TeslaTV 全屏 iframe 播放容器 (用于行车观影) -->
-    <div id="tesla-fullscreen-container" style="display: none;">
-        <iframe id="tesla-player-iframe" sandbox="allow-same-origin allow-forms allow-scripts allow-popups"
-            allow="autoplay; fullscreen; picture-in-picture" allowfullscreen>
+    <!-- 注意：主要逻辑在页面底部定义，这里只是容器备份 -->
+    <div id="tesla-fullscreen-container-backup" style="display: none;">
+        <!-- 模仿 tesla-netflix.com 的 iframe 属性配置 -->
+        <iframe id="tesla-player-iframe-backup" sandbox="allow-same-origin allow-forms allow-scripts"
+            allowfullscreen="allowfullscreen" mozallowfullscreen="mozallowfullscreen"
+            msallowfullscreen="msallowfullscreen" oallowfullscreen="oallowfullscreen"
+            webkitallowfullscreen="webkitallowfullscreen" security="restricted"
+            allow="autoplay; fullscreen; picture-in-picture">
         </iframe>
-        <button id="tesla-exit-btn" onclick="closeTeslaPlayer()">
+        <button id="tesla-exit-btn-backup" onclick="closeTeslaPlayer()">
             ✕ 退出播放
         </button>
     </div>
@@ -2615,32 +2620,22 @@
             <path
                 d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
         </svg>
-        TeslaTV
+        TeslaTV 行车模式
     </div>
 
     <script>
-        // TeslaTV 全屏播放控制函数
-        // 使用 Canvas 渲染模式绕过特斯拉驾驶检测
-        function openTeslaPlayer(videoUrl, videoTitle) {
-            var container = document.getElementById('tesla-fullscreen-container');
-            var iframe = document.getElementById('tesla-player-iframe');
-            if (container && iframe) {
-                // 使用 Canvas 播放器（更稳定的绕过方案）
-                var playerUrl = 'tesla-canvas-player.html?url=' + encodeURIComponent(videoUrl) + '&title=' + encodeURIComponent(videoTitle || '');
-                iframe.src = playerUrl;
-                container.style.display = 'block';
-                console.log('[TeslaTV] 打开 Canvas 播放器:', videoTitle);
-            }
-        }
-
-        function closeTeslaPlayer() {
-            var container = document.getElementById('tesla-fullscreen-container');
-            var iframe = document.getElementById('tesla-player-iframe');
-            if (container) {
-                container.style.display = 'none';
-                if (iframe) iframe.src = 'about:blank';
-            }
-            console.log('[TeslaTV] 关闭全屏播放器');
+        // TeslaTV 函数占位符 - 实际函数在页面底部定义
+        // 这个空占位符确保页面加载顺序不会导致报错
+        if (typeof openTeslaPlayer === 'undefined') {
+            window.openTeslaPlayer = function (url, title) {
+                console.log('[TeslaTV-占位符] 函数尚未加载，等待页面底部脚本...');
+                // 延迟执行，等待真正的函数加载
+                setTimeout(function () {
+                    if (window.openTeslaPlayer && window.openTeslaPlayer !== arguments.callee) {
+                        window.openTeslaPlayer(url, title);
+                    }
+                }, 100);
+            };
         }
 
         // 显示 TeslaTV 徽章
@@ -5656,42 +5651,74 @@
     <!-- Tesla 全屏播放器容器 -->
     <div id="tesla-fullscreen-container"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background:#000;">
-        <iframe id="tesla-player-iframe" sandbox="allow-same-origin allow-forms allow-scripts allow-popups"
-            style="width:100%; height:100%; border:none;" allowfullscreen></iframe>
+        <!-- 模仿 tesla-netflix.com 的 iframe 属性配置 -->
+        <iframe id="tesla-player-iframe" sandbox="allow-same-origin allow-forms allow-scripts"
+            allowfullscreen="allowfullscreen" mozallowfullscreen="mozallowfullscreen"
+            msallowfullscreen="msallowfullscreen" oallowfullscreen="oallowfullscreen"
+            webkitallowfullscreen="webkitallowfullscreen" security="restricted"
+            style="width:100%; height:100%; border:none;"></iframe>
+        <!-- 退出按钮 -->
+        <button id="tesla-exit-btn" onclick="closeTeslaPlayer()" style="position:absolute; top:20px; right:20px; z-index:1000; 
+                   background:rgba(229,9,20,0.9); color:#fff; border:none; 
+                   padding:12px 24px; border-radius:8px; font-size:16px; 
+                   font-weight:600; cursor:pointer;">
+            ✕ 退出
+        </button>
     </div>
 
     <!-- Tesla 播放器函数 -->
     <script data-cfasync="false">
         /**
-         * TeslaTV 行车观影播放器
-         * 使用多层 iframe 嵌套技术绕过特斯拉视频限制
-         * 架构: index.html -> tesla-iframe-wrapper.html -> tesla-canvas-player.html
+         * TeslaTV 行车观影播放器 - 跨域解析方案
+         * 核心机制：使用第三方解析页进行视频播放，绕过特斯拉视频检测
+         * 原理：让 <video> 标签在外部域名下运行（跨域隔离）
          */
+
+        // 可用的解析页列表（优先级从高到低）
+        const PARSER_APIS = [
+            // ===== 自建解析（首选，更稳定）=====
+            { name: '自建解析', url: 'https://player.686423.xyz/player.html?url=' },
+
+            // ===== 第三方解析（备用）=====
+            { name: '火狐解析', url: 'https://hhjiexi.com/play/?url=' },
+            { name: 'JSON解析', url: 'https://jx.jsonplayer.com/player/?url=' },
+            { name: '虾米解析', url: 'https://dm.xmflv.com/?url=' },
+            { name: '爱看解析', url: 'https://jx.dk47.com/?url=' }
+        ];
+
+        // 当前使用的解析 API 索引
+        let currentParserIndex = 0;
+
         function openTeslaPlayer(videoUrl, videoTitle) {
-            console.log('[TeslaTV] 打开多层嵌套播放器');
-            console.log('[TeslaTV] URL:', videoUrl?.substring(0, 50) + '...');
-            console.log('[TeslaTV] Title:', videoTitle);
+            console.log('[TeslaTV-跨域] 使用第三方解析页播放');
+            console.log('[TeslaTV-跨域] 视频 URL:', videoUrl?.substring(0, 60) + '...');
+            console.log('[TeslaTV-跨域] 使用解析:', PARSER_APIS[currentParserIndex].name);
 
             const container = document.getElementById('tesla-fullscreen-container');
             const iframe = document.getElementById('tesla-player-iframe');
 
             if (!container || !iframe) {
-                console.error('[TeslaTV] 播放器容器不存在');
+                console.error('[TeslaTV-跨域] 播放器容器不存在');
                 return;
             }
 
-            // 构建播放器 URL（使用多层 iframe 嵌套方案）
-            // 第一层: tesla-iframe-wrapper.html (中间层)
-            // 第二层: tesla-canvas-player.html (实际播放器)
-            const playerUrl = '/tesla-iframe-wrapper.html?' +
-                'url=' + encodeURIComponent(videoUrl) +
-                '&title=' + encodeURIComponent(videoTitle || '未知视频') +
-                '&player=tesla-canvas-player.html';
+            // 使用第三方解析页（跨域 iframe 嵌套方案）
+            // 这是 tesla-netflix.com 的核心绕过机制！
+            const parser = PARSER_APIS[currentParserIndex];
+            const playerUrl = parser.url + encodeURIComponent(videoUrl);
 
             iframe.src = playerUrl;
             container.style.display = 'block';
 
-            console.log('[TeslaTV] 多层嵌套播放器已启动');
+            console.log('[TeslaTV-跨域] 解析页 URL:', playerUrl.substring(0, 80) + '...');
+            console.log('[TeslaTV-跨域] 播放器已启动');
+        }
+
+        // 切换到下一个解析源
+        function switchParser() {
+            currentParserIndex = (currentParserIndex + 1) % PARSER_APIS.length;
+            console.log('[TeslaTV-跨域] 切换解析源:', PARSER_APIS[currentParserIndex].name);
+            return PARSER_APIS[currentParserIndex];
         }
 
         // 关闭 Tesla 播放器
@@ -5702,12 +5729,14 @@
             if (container) container.style.display = 'none';
             if (iframe) iframe.src = 'about:blank';
 
-            console.log('[TeslaTV] 播放器已关闭');
+            console.log('[TeslaTV-跨域] 播放器已关闭');
         }
 
         // 暴露到全局
         window.openTeslaPlayer = openTeslaPlayer;
         window.closeTeslaPlayer = closeTeslaPlayer;
+        window.switchParser = switchParser;
+        window.PARSER_APIS = PARSER_APIS;
     </script>
 
     <!-- Register Service Worker with Auto-Update -->
