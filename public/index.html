@@ -5651,12 +5651,12 @@
     <!-- Tesla 全屏播放器容器 -->
     <div id="tesla-fullscreen-container"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background:#000;">
-        <!-- 模仿 tesla-netflix.com 的 iframe 属性配置 -->
-        <iframe id="tesla-player-iframe" sandbox="allow-same-origin allow-forms allow-scripts"
-            allowfullscreen="allowfullscreen" mozallowfullscreen="mozallowfullscreen"
-            msallowfullscreen="msallowfullscreen" oallowfullscreen="oallowfullscreen"
-            webkitallowfullscreen="webkitallowfullscreen" security="restricted"
+        <!-- 修正：移除 sandbox 和 security 属性，匹配 tesla-netflix.com 行为 -->
+        <iframe id="tesla-player-iframe" frameborder="0" scrolling="no" allowfullscreen="true"
+            webkitallowfullscreen="true" mozallowfullscreen="true"
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
             style="width:100%; height:100%; border:none;"></iframe>
+
         <!-- 退出按钮 -->
         <button id="tesla-exit-btn" onclick="closeTeslaPlayer()" style="position:absolute; top:20px; right:20px; z-index:1000; 
                    background:rgba(229,9,20,0.9); color:#fff; border:none; 
@@ -5669,56 +5669,34 @@
     <!-- Tesla 播放器函数 -->
     <script data-cfasync="false">
         /**
-         * TeslaTV 行车观影播放器 - 跨域解析方案
-         * 核心机制：使用第三方解析页进行视频播放，绕过特斯拉视频检测
-         * 原理：让 <video> 标签在外部域名下运行（跨域隔离）
+         * TeslaTV 行车观影播放器 - 本地优选方案
+         * 核心机制：使用无 Sandbox 的 iframe 嵌套标准 DPlayer，配合特定的 Meta 标签
+         * 2024 更新：不再依赖不稳定且有广告的第三方解析
          */
 
-        // 可用的解析页列表（优先级从高到低）
-        const PARSER_APIS = [
-            // ===== 第三方解析（主用）=====
-            { name: '火狐解析', url: 'https://hhjiexi.com/play/?url=' },
-            { name: 'JSON解析', url: 'https://jx.jsonplayer.com/player/?url=' },
-            { name: '虾米解析', url: 'https://dm.xmflv.com/?url=' },
-            { name: '爱看解析', url: 'https://jx.dk47.com/?url=' },
-
-            // ===== 自建解析（暂时禁用，Cloudflare Pages 部署问题待修复）=====
-            // { name: '自建解析', url: 'https://player.686423.xyz/?url=' }
-        ];
-
-        // 当前使用的解析 API 索引
-        let currentParserIndex = 0;
-
         function openTeslaPlayer(videoUrl, videoTitle) {
-            console.log('[TeslaTV-跨域] 使用第三方解析页播放');
-            console.log('[TeslaTV-跨域] 视频 URL:', videoUrl?.substring(0, 60) + '...');
-            console.log('[TeslaTV-跨域] 使用解析:', PARSER_APIS[currentParserIndex].name);
+            console.log('[TeslaTV] 启动行车播放模式');
+            console.log('[TeslaTV] 视频 URL:', videoUrl?.substring(0, 60) + '...');
 
             const container = document.getElementById('tesla-fullscreen-container');
             const iframe = document.getElementById('tesla-player-iframe');
 
             if (!container || !iframe) {
-                console.error('[TeslaTV-跨域] 播放器容器不存在');
+                console.error('[TeslaTV] 播放器容器不存在');
                 return;
             }
 
-            // 使用第三方解析页（跨域 iframe 嵌套方案）
-            // 这是 tesla-netflix.com 的核心绕过机制！
-            const parser = PARSER_APIS[currentParserIndex];
-            const playerUrl = parser.url + encodeURIComponent(videoUrl);
+            // 使用本地优化过的 iframe wrapper
+            // 默认使用 tesla-player.html (标准 DPlayer)
+            const wrapperUrl = 'tesla-iframe-wrapper.html' +
+                '?url=' + encodeURIComponent(videoUrl) +
+                '&title=' + encodeURIComponent(videoTitle || 'TeslaTV') +
+                '&player=tesla-player.html';
 
-            iframe.src = playerUrl;
+            iframe.src = wrapperUrl;
             container.style.display = 'block';
 
-            console.log('[TeslaTV-跨域] 解析页 URL:', playerUrl.substring(0, 80) + '...');
-            console.log('[TeslaTV-跨域] 播放器已启动');
-        }
-
-        // 切换到下一个解析源
-        function switchParser() {
-            currentParserIndex = (currentParserIndex + 1) % PARSER_APIS.length;
-            console.log('[TeslaTV-跨域] 切换解析源:', PARSER_APIS[currentParserIndex].name);
-            return PARSER_APIS[currentParserIndex];
+            console.log('[TeslaTV] 加载本地 Wrapper:', wrapperUrl);
         }
 
         // 关闭 Tesla 播放器
@@ -5729,14 +5707,12 @@
             if (container) container.style.display = 'none';
             if (iframe) iframe.src = 'about:blank';
 
-            console.log('[TeslaTV-跨域] 播放器已关闭');
+            console.log('[TeslaTV] 播放器已关闭');
         }
 
         // 暴露到全局
         window.openTeslaPlayer = openTeslaPlayer;
         window.closeTeslaPlayer = closeTeslaPlayer;
-        window.switchParser = switchParser;
-        window.PARSER_APIS = PARSER_APIS;
     </script>
 
     <!-- Register Service Worker with Auto-Update -->

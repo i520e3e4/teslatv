@@ -46,15 +46,14 @@
     <!-- 安装占位 iframe（模仿 tesla-netflix.com 的 install iframe） -->
     <iframe id="install-frame" src=""></iframe>
     
-    <!-- 实际播放器 iframe，带 sandbox 限制 -->
+    <!-- 实际播放器 iframe，移除 sandbox 限制以匹配 tesla-netflix.com 行为 -->
     <iframe id="player-frame"
-        sandbox="allow-same-origin allow-forms allow-scripts"
-        allowfullscreen="allowfullscreen"
-        mozallowfullscreen="mozallowfullscreen"
-        msallowfullscreen="msallowfullscreen"
-        oallowfullscreen="oallowfullscreen"
-        webkitallowfullscreen="webkitallowfullscreen"
-        allow="autoplay; fullscreen; picture-in-picture">
+        frameborder="0"
+        scrolling="no"
+        allowfullscreen="true"
+        webkitallowfullscreen="true"
+        mozallowfullscreen="true"
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture">
     </iframe>
     
     <script>

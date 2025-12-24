@@ -4,21 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="referrer" content="never">
-    <title>TeslaTV Player</title>
+    <meta name="referrer" content="no-referrer">
+    <title>TeslaTV Canvas Player</title>
 
     <!-- 关键：告诉特斯拉浏览器这是一个独立页面 -->
     <meta name="tesla-theater" content="true">
-
-    <!-- 全屏模式 Meta 标签 (同步自 wrapper) -->
-    <meta name="x5-fullscreen" content="true">
-    <meta name="x5-page-mode" content="app">
-    <meta name="full-screen" content="yes">
-    <meta name="browsermode" content="application">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-    <script src="libs/js/hls.min.js"></script>
 
     <style>
         * {
@@ -37,7 +27,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
-        /* 播放器容器 - 全屏 */
+        /* Canvas 播放器容器 */
         #player-container {
             position: fixed;
             top: 0;
@@ -45,14 +35,27 @@
             width: 100%;
             height: 100%;
             background: #000;
-            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        #video-player {
-            width: 100%;
-            height: 100%;
+        #video-canvas {
+            max-width: 100%;
+            max-height: 100%;
             object-fit: contain;
             background: #000;
+        }
+
+        /* 隐藏的 video 元素（用于解码，不显示） */
+        #hidden-video {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+            /* 关键：让 Tesla 检测不到这是视频播放 */
+            visibility: hidden;
         }
 
         /* 控制层 */
@@ -91,13 +94,26 @@
 
         .video-title {
             color: #fff;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 600;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-            max-width: 70%;
+            max-width: 60%;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .tesla-badge {
+            background: linear-gradient(135deg, #e50914, #b40010);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
         }
 
         .exit-btn {
@@ -113,8 +129,6 @@
             align-items: center;
             gap: 8px;
             transition: all 0.2s ease;
-            min-width: 120px;
-            justify-content: center;
         }
 
         .exit-btn:hover {
@@ -122,48 +136,48 @@
             transform: scale(1.05);
         }
 
-        .exit-btn:active {
-            transform: scale(0.95);
-        }
-
         /* 中央播放按钮 */
-        .center-play-btn {
+        .center-controls {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, rgba(229, 9, 20, 0.95), rgba(180, 0, 15, 0.9));
+            display: flex;
+            align-items: center;
+            gap: 40px;
+        }
+
+        .ctrl-circle {
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.15);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 24px;
+        }
+
+        .ctrl-circle:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.1);
+        }
+
+        .ctrl-circle.play-btn {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, rgba(229, 9, 20, 0.95), rgba(180, 0, 15, 0.9));
             border: 3px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 0 60px rgba(229, 9, 20, 0.5), 0 0 120px rgba(229, 9, 20, 0.3);
-            transition: all 0.3s ease;
+            box-shadow: 0 0 60px rgba(229, 9, 20, 0.5);
         }
 
-        .center-play-btn:hover {
-            transform: translate(-50%, -50%) scale(1.1);
-            box-shadow: 0 0 80px rgba(229, 9, 20, 0.7), 0 0 160px rgba(229, 9, 20, 0.4);
-        }
-
-        .center-play-btn:active {
-            transform: translate(-50%, -50%) scale(0.95);
-        }
-
-        .center-play-btn svg {
+        .ctrl-circle.play-btn svg {
             width: 40px;
             height: 40px;
             fill: #fff;
-            margin-left: 6px;
-            /* 视觉修正 */
-        }
-
-        .center-play-btn.pause svg {
-            margin-left: 0;
+            margin-left: 5px;
         }
 
         /* 底部控制栏 */
@@ -176,7 +190,6 @@
             background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
         }
 
-        /* 进度条 */
         .progress-container {
             width: 100%;
             height: 8px;
@@ -207,7 +220,6 @@
             left: 0%;
         }
 
-        /* 控制按钮行 */
         .controls-row {
             display: flex;
             justify-content: space-between;
@@ -222,7 +234,7 @@
 
         .control-buttons {
             display: flex;
-            gap: 20px;
+            gap: 15px;
             align-items: center;
         }
 
@@ -235,7 +247,7 @@
             font-size: 18px;
             cursor: pointer;
             transition: all 0.2s ease;
-            min-width: 60px;
+            min-width: 55px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -245,10 +257,6 @@
             background: rgba(255, 255, 255, 0.25);
         }
 
-        .ctrl-btn.active {
-            background: rgba(229, 9, 20, 0.6);
-        }
-
         /* 加载指示器 */
         .loading-overlay {
             position: fixed;
@@ -256,7 +264,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -287,48 +295,49 @@
             color: #fff;
             margin-top: 20px;
             font-size: 18px;
-        }
-
-        /* 错误提示 */
-        .error-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            padding: 40px;
             text-align: center;
         }
 
-        .error-overlay.show {
+        .loading-progress {
+            color: #888;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        /* 模式切换按钮 */
+        .mode-indicator {
+            position: fixed;
+            bottom: 120px;
+            right: 30px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #46d369;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 13px;
             display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 50;
         }
 
-        .error-icon {
-            font-size: 60px;
-            margin-bottom: 20px;
+        .mode-dot {
+            width: 8px;
+            height: 8px;
+            background: #46d369;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
         }
 
-        .error-text {
-            color: #fff;
-            font-size: 20px;
-            margin-bottom: 30px;
-        }
+        @keyframes pulse {
 
-        .retry-btn {
-            background: #e50914;
-            color: #fff;
-            border: none;
-            padding: 15px 40px;
-            border-radius: 8px;
-            font-size: 18px;
-            cursor: pointer;
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         /* 快进/快退提示 */
@@ -359,27 +368,48 @@
             opacity: 1;
         }
 
-        /* Tesla 模式徽章 */
-        .tesla-badge {
-            position: absolute;
-            top: 20px;
-            left: 30px;
-            background: linear-gradient(135deg, #e50914, #b40010);
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-            display: flex;
+        /* 错误提示 */
+        .error-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
             align-items: center;
-            gap: 8px;
-            box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
+            justify-content: center;
+            z-index: 100;
+            padding: 40px;
+            text-align: center;
         }
 
-        .tesla-badge svg {
-            width: 18px;
-            height: 18px;
-            fill: currentColor;
+        .error-overlay.show {
+            display: flex;
+        }
+
+        .error-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .error-text {
+            color: #fff;
+            font-size: 20px;
+            margin-bottom: 30px;
+            max-width: 500px;
+        }
+
+        .retry-btn {
+            background: #e50914;
+            color: #fff;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-bottom: 15px;
         }
     </style>
 </head>
@@ -388,7 +418,8 @@
     <!-- 加载指示器 -->
     <div class="loading-overlay" id="loading">
         <div class="spinner"></div>
-        <div class="loading-text">正在加载视频...</div>
+        <div class="loading-text" id="loading-text">正在初始化 Canvas 播放器...</div>
+        <div class="loading-progress" id="loading-progress"></div>
     </div>
 
     <!-- 错误提示 -->
@@ -396,12 +427,20 @@
         <div class="error-icon">❌</div>
         <div class="error-text" id="error-text">视频加载失败</div>
         <button class="retry-btn" onclick="retryPlay()">重试</button>
-        <button class="exit-btn" style="margin-top: 15px;" onclick="exitPlayer()">返回</button>
+        <button class="exit-btn" onclick="exitPlayer()">返回</button>
     </div>
 
-    <!-- 播放器 -->
-    <div id="player-container">
-        <video id="video-player" playsinline webkit-playsinline></video>
+    <!-- Canvas 播放器 -->
+    <div id="player-container" onclick="toggleControls()">
+        <canvas id="video-canvas"></canvas>
+        <!-- 隐藏的 video 元素用于解码 -->
+        <video id="hidden-video" playsinline></video>
+    </div>
+
+    <!-- Canvas 渲染模式指示 -->
+    <div class="mode-indicator" id="mode-indicator">
+        <div class="mode-dot"></div>
+        <span>Canvas 渲染模式</span>
     </div>
 
     <!-- 控制层 -->
@@ -409,23 +448,25 @@
         <!-- 顶部栏 -->
         <div class="top-bar">
             <div class="tesla-badge">
-                <svg viewBox="0 0 24 24">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path
                         d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                 </svg>
-                TeslaTV
+                TeslaTV Canvas
             </div>
             <div class="video-title" id="video-title">加载中...</div>
-            <button class="exit-btn" onclick="exitPlayer()">
-                ✕ 退出
-            </button>
+            <button class="exit-btn" onclick="exitPlayer()">✕ 退出</button>
         </div>
 
-        <!-- 中央播放按钮 -->
-        <div class="center-play-btn" id="centerPlayBtn" onclick="togglePlay()">
-            <svg id="playIcon" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-            </svg>
+        <!-- 中央控制 -->
+        <div class="center-controls">
+            <div class="ctrl-circle" onclick="seek(-10)">⏪</div>
+            <div class="ctrl-circle play-btn" id="centerPlayBtn" onclick="togglePlay()">
+                <svg id="playIcon" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                </svg>
+            </div>
+            <div class="ctrl-circle" onclick="seek(10)">⏩</div>
         </div>
 
         <!-- 快进/快退提示 -->
@@ -434,7 +475,7 @@
 
         <!-- 底部控制栏 -->
         <div class="bottom-bar">
-            <div class="progress-container" id="progressContainer">
+            <div class="progress-container" id="progressContainer" onclick="seekToPosition(event)">
                 <div class="progress-bar" id="progressBar"></div>
                 <div class="progress-thumb" id="progressThumb"></div>
             </div>
@@ -443,21 +484,39 @@
                     <span id="currentTime">00:00</span> / <span id="duration">00:00</span>
                 </div>
                 <div class="control-buttons">
-                    <button class="ctrl-btn" onclick="seek(-10)" title="后退10秒">⏪</button>
+                    <button class="ctrl-btn" onclick="seek(-10)">⏪</button>
                     <button class="ctrl-btn" onclick="togglePlay()" id="playPauseBtn">▶️</button>
-                    <button class="ctrl-btn" onclick="seek(10)" title="快进10秒">⏩</button>
-                    <button class="ctrl-btn" onclick="toggleFullscreen()" title="全屏">⛶</button>
+                    <button class="ctrl-btn" onclick="seek(10)">⏩</button>
+                    <button class="ctrl-btn" onclick="toggleFullscreen()">⛶</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- HLS.js (使用 CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
+
     <script>
+        // ========== 禁用 Media Session API（绕过特斯拉检测的关键） ==========
+        if ('mediaSession' in navigator) {
+            try {
+                navigator.mediaSession.metadata = null;
+                navigator.mediaSession.playbackState = 'none';
+                ['play', 'pause', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack'].forEach(action => {
+                    try { navigator.mediaSession.setActionHandler(action, null); } catch (e) { }
+                });
+            } catch (e) { console.log('Media Session disabled'); }
+        }
+
         // ========== 全局变量 ==========
         let video = null;
+        let canvas = null;
+        let ctx = null;
         let hls = null;
+        let animationId = null;
         let controlsTimeout = null;
         let lastTap = 0;
+        let isPlaying = false;
 
         // 从 URL 获取参数
         const urlParams = new URLSearchParams(window.location.search);
@@ -466,7 +525,10 @@
 
         // ========== 初始化 ==========
         document.addEventListener('DOMContentLoaded', () => {
-            video = document.getElementById('video-player');
+            video = document.getElementById('hidden-video');
+            canvas = document.getElementById('video-canvas');
+            ctx = canvas.getContext('2d');
+
             document.getElementById('video-title').textContent = videoTitle;
 
             if (!videoUrl) {
@@ -474,14 +536,47 @@
                 return;
             }
 
+            updateLoadingText('正在加载视频流...');
             initPlayer();
             setupEventListeners();
             setupTouchControls();
         });
 
+        // ========== Canvas 渲染循环 ==========
+        function renderFrame() {
+            if (video.paused || video.ended) {
+                return;
+            }
+
+            // 确保 canvas 尺寸与视频匹配
+            if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                canvas.width = video.videoWidth || 1920;
+                canvas.height = video.videoHeight || 1080;
+            }
+
+            // 将视频帧绘制到 canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // 继续下一帧
+            animationId = requestAnimationFrame(renderFrame);
+        }
+
+        function startRendering() {
+            if (!animationId) {
+                renderFrame();
+            }
+        }
+
+        function stopRendering() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+        }
+
         // ========== 播放器初始化 ==========
         function initPlayer() {
-            showLoading();
+            updateLoadingText('正在解析视频流...');
 
             // 检测是否为 HLS 流
             if (videoUrl.includes('.m3u8') || videoUrl.includes('m3u8')) {
@@ -491,28 +586,44 @@
                         lowLatencyMode: true,
                         backBufferLength: 90
                     });
+
                     hls.loadSource(videoUrl);
                     hls.attachMedia(video);
 
                     hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        updateLoadingText('视频流就绪，正在启动...');
                         hideLoading();
-                        video.play().catch(e => {
+                        // 自动播放
+                        video.play().then(() => {
+                            isPlaying = true;
+                            startRendering();
+                            updatePlayState();
+                        }).catch(e => {
                             console.log('自动播放被阻止，需要用户交互');
                             hideLoading();
                         });
                     });
 
                     hls.on(Hls.Events.ERROR, (event, data) => {
+                        console.error('HLS Error:', data);
                         if (data.fatal) {
                             showError('视频流加载失败: ' + data.type);
                         }
                     });
+
+                    hls.on(Hls.Events.FRAG_LOADING, () => {
+                        updateLoadingText('正在缓冲视频片段...');
+                    });
+
                 } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                     // iOS Safari 原生 HLS 支持
                     video.src = videoUrl;
                     video.addEventListener('loadedmetadata', () => {
                         hideLoading();
-                        video.play();
+                        video.play().then(() => {
+                            isPlaying = true;
+                            startRendering();
+                        });
                     });
                 }
             } else {
@@ -520,12 +631,16 @@
                 video.src = videoUrl;
                 video.addEventListener('loadedmetadata', () => {
                     hideLoading();
-                    video.play();
+                    video.play().then(() => {
+                        isPlaying = true;
+                        startRendering();
+                    });
                 });
             }
 
             // 错误处理
             video.addEventListener('error', (e) => {
+                console.error('Video error:', e);
                 showError('视频播放失败');
             });
         }
@@ -533,21 +648,34 @@
         // ========== 事件监听 ==========
         function setupEventListeners() {
             // 播放/暂停状态变化
-            video.addEventListener('play', updatePlayState);
-            video.addEventListener('pause', updatePlayState);
+            video.addEventListener('play', () => {
+                isPlaying = true;
+                startRendering();
+                updatePlayState();
+            });
+
+            video.addEventListener('pause', () => {
+                isPlaying = false;
+                stopRendering();
+                updatePlayState();
+            });
+
+            video.addEventListener('ended', () => {
+                isPlaying = false;
+                stopRendering();
+                updatePlayState();
+            });
 
             // 时间更新
             video.addEventListener('timeupdate', updateProgress);
 
             // 缓冲
-            video.addEventListener('waiting', showLoading);
+            video.addEventListener('waiting', () => {
+                showLoading();
+                updateLoadingText('正在缓冲...');
+            });
+
             video.addEventListener('playing', hideLoading);
-
-            // 进度条点击
-            document.getElementById('progressContainer').addEventListener('click', seekToPosition);
-
-            // 点击视频区域显示/隐藏控制栏
-            document.getElementById('player-container').addEventListener('click', toggleControls);
 
             // 自动隐藏控制栏
             resetControlsTimeout();
@@ -566,17 +694,15 @@
                 // 双击检测
                 if (now - lastTap < 300) {
                     e.preventDefault();
+                    e.stopPropagation();
 
                     if (x < width * 0.35) {
-                        // 左侧双击 - 快退
                         seek(-10);
                         showSeekHint('left');
                     } else if (x > width * 0.65) {
-                        // 右侧双击 - 快进
                         seek(10);
                         showSeekHint('right');
                     } else {
-                        // 中间双击 - 播放/暂停
                         togglePlay();
                     }
                 }
@@ -596,14 +722,14 @@
         }
 
         function seek(seconds) {
-            video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
+            video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds));
             resetControlsTimeout();
         }
 
         function seekToPosition(e) {
             const rect = e.currentTarget.getBoundingClientRect();
             const percent = (e.clientX - rect.left) / rect.width;
-            video.currentTime = percent * video.duration;
+            video.currentTime = percent * (video.duration || 0);
             resetControlsTimeout();
         }
 
@@ -616,7 +742,11 @@
         }
 
         function exitPlayer() {
-            // 通知父页面关闭 iframe
+            stopRendering();
+            if (hls) {
+                hls.destroy();
+            }
+            // 通知父页面关闭
             if (window.parent !== window) {
                 window.parent.postMessage({ type: 'tesla-player-exit' }, '*');
             } else {
@@ -634,18 +764,15 @@
 
         // ========== UI 更新 ==========
         function updatePlayState() {
-            const centerBtn = document.getElementById('centerPlayBtn');
             const playIcon = document.getElementById('playIcon');
             const playPauseBtn = document.getElementById('playPauseBtn');
 
             if (video.paused) {
                 playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-                centerBtn.classList.remove('pause');
                 playPauseBtn.textContent = '▶️';
                 showControls();
             } else {
                 playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-                centerBtn.classList.add('pause');
                 playPauseBtn.textContent = '⏸️';
             }
         }
@@ -662,6 +789,7 @@
         }
 
         function formatTime(seconds) {
+            if (!seconds || isNaN(seconds)) return '00:00';
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
@@ -672,19 +800,21 @@
             const overlay = document.getElementById('controls-overlay');
             if (overlay.classList.contains('hidden')) {
                 showControls();
-            } else {
+            } else if (!video.paused) {
                 hideControls();
             }
         }
 
         function showControls() {
             document.getElementById('controls-overlay').classList.remove('hidden');
+            document.getElementById('mode-indicator').style.opacity = '1';
             resetControlsTimeout();
         }
 
         function hideControls() {
             if (!video.paused) {
                 document.getElementById('controls-overlay').classList.add('hidden');
+                document.getElementById('mode-indicator').style.opacity = '0';
             }
         }
 
@@ -706,6 +836,10 @@
             document.getElementById('loading').classList.add('hidden');
         }
 
+        function updateLoadingText(text) {
+            document.getElementById('loading-text').textContent = text;
+        }
+
         function showError(message) {
             hideLoading();
             document.getElementById('error-text').textContent = message;
@@ -721,17 +855,25 @@
         // ========== 与父页面通信 ==========
         window.addEventListener('message', (event) => {
             const data = event.data;
-
             if (data.type === 'play-video') {
-                // 接收父页面发来的播放请求
-                // 暂时不需要，因为我们通过 URL 参数传递
+                // 可以接收父页面的播放请求
             }
         });
 
         // 页面关闭时清理
         window.addEventListener('beforeunload', () => {
+            stopRendering();
             if (hls) {
                 hls.destroy();
+            }
+        });
+
+        // 处理页面可见性变化
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopRendering();
+            } else if (isPlaying) {
+                startRendering();
             }
         });
     </script>
