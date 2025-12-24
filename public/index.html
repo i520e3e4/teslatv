@@ -5657,26 +5657,50 @@
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
             style="width:100%; height:100%; border:none;"></iframe>
 
-        <!-- 退出按钮 -->
-        <button id="tesla-exit-btn" onclick="closeTeslaPlayer()" style="position:absolute; top:20px; right:20px; z-index:1000; 
-                   background:rgba(229,9,20,0.9); color:#fff; border:none; 
-                   padding:12px 24px; border-radius:8px; font-size:16px; 
-                   font-weight:600; cursor:pointer;">
-            ✕ 退出
-        </button>
+        <!-- 控制按钮组 -->
+        <div style="position:absolute; top:20px; right:20px; z-index:1000; display:flex; gap:10px;">
+            <!-- 切换线路按钮 (Fallback) -->
+            <button id="tesla-switch-btn" onclick="switchTeslaParser()" style="
+                       background:rgba(255,255,255,0.2); color:#fff; border:1px solid rgba(255,255,255,0.4); 
+                       padding:12px 16px; border-radius:8px; font-size:14px; 
+                       backdrop-filter:blur(5px); cursor:pointer;">
+                🔄 切换线路 (本地/跨域)
+            </button>
+
+            <!-- 退出按钮 -->
+            <button id="tesla-exit-btn" onclick="closeTeslaPlayer()" style="
+                       background:rgba(229,9,20,0.9); color:#fff; border:none; 
+                       padding:12px 24px; border-radius:8px; font-size:16px; 
+                       font-weight:600; cursor:pointer;">
+                ✕ 退出
+            </button>
+        </div>
     </div>
 
     <!-- Tesla 播放器函数 -->
     <script data-cfasync="false">
         /**
-         * TeslaTV 行车观影播放器 - 本地优选方案
-         * 核心机制：使用无 Sandbox 的 iframe 嵌套标准 DPlayer，配合特定的 Meta 标签
-         * 2024 更新：不再依赖不稳定且有广告的第三方解析
+         * TeslaTV 行车观影播放器 - 混合模式
+         * 模式 A (默认): 本地 Wrapper (同源) - 速度快，无广告
+         * 模式 B (备用): 第三方解析 (跨域) - 兼容性更强，用于绕过极端的同源检测
          */
+
+        // 可用的解析/播放源列表
+        const PLAY_SOURCES = [
+            { type: 'local', name: '本地优化线路', url: 'tesla-player.html?player=tesla-player.html&title={title}&url={url}' },
+            { type: 'remote', name: '外部线路1 (跨域)', url: 'https://hhjiexi.com/play/?url={url}' },
+            { type: 'remote', name: '外部线路2 (跨域)', url: 'https://jx.jsonplayer.com/player/?url={url}' }
+        ];
+
+        let currentSourceIndex = 0;
+        let currentVideoUrl = '';
+        let currentVideoTitle = '';
 
         function openTeslaPlayer(videoUrl, videoTitle) {
             console.log('[TeslaTV] 启动行车播放模式');
-            console.log('[TeslaTV] 视频 URL:', videoUrl?.substring(0, 60) + '...');
+            currentVideoUrl = videoUrl;
+            currentVideoTitle = videoTitle || 'TeslaTV';
+            currentSourceIndex = 0; // 默认重置为本地优先
 
             const container = document.getElementById('tesla-fullscreen-container');
             const iframe = document.getElementById('tesla-player-iframe');
@@ -5686,17 +5710,41 @@
                 return;
             }
 
-            // 使用本地优化过的 iframe wrapper
-            // 默认使用 tesla-player.html (标准 DPlayer)
-            const wrapperUrl = 'tesla-iframe-wrapper.html' +
-                '?url=' + encodeURIComponent(videoUrl) +
-                '&title=' + encodeURIComponent(videoTitle || 'TeslaTV') +
-                '&player=tesla-player.html';
-
-            iframe.src = wrapperUrl;
             container.style.display = 'block';
+            loadCurrentSource();
+        }
 
-            console.log('[TeslaTV] 加载本地 Wrapper:', wrapperUrl);
+        function loadCurrentSource() {
+            const iframe = document.getElementById('tesla-player-iframe');
+            const source = PLAY_SOURCES[currentSourceIndex];
+            const switchBtn = document.getElementById('tesla-switch-btn');
+
+            if (!iframe) return;
+
+            let finalUrl = source.url
+                .replace('{url}', encodeURIComponent(currentVideoUrl))
+                .replace('{title}', encodeURIComponent(currentVideoTitle));
+
+            // 如果是本地线路，不需要再次 encode，因为 template 里已经是 plain url
+            // Wait, template is `...&url={url}`.
+            // 本地线路稍微特殊，直接用 tesla-player.html 试试 (跳过 Wrapper)
+            if (source.type === 'local') {
+                // 直接加载 tesla-player.html，减少 wrapper 层级干扰
+                finalUrl = 'tesla-player.html?url=' + encodeURIComponent(currentVideoUrl) +
+                    '&title=' + encodeURIComponent(currentVideoTitle);
+            }
+
+            console.log(`[TeslaTV] 加载线路 [${source.name}]:Raw URL: ${finalUrl}`);
+            iframe.src = finalUrl;
+
+            if (switchBtn) {
+                switchBtn.innerText = `🔄 切换 (${source.name})`;
+            }
+        }
+
+        function switchTeslaParser() {
+            currentSourceIndex = (currentSourceIndex + 1) % PLAY_SOURCES.length;
+            loadCurrentSource();
         }
 
         // 关闭 Tesla 播放器
@@ -5713,6 +5761,7 @@
         // 暴露到全局
         window.openTeslaPlayer = openTeslaPlayer;
         window.closeTeslaPlayer = closeTeslaPlayer;
+        window.switchTeslaParser = switchTeslaParser;
     </script>
 
     <!-- Register Service Worker with Auto-Update -->
