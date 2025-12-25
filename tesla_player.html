@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<style>
+    #player-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .loading-dot {
+        --dot-color: #e50916 !important;
+    }
+</style>
+<body>
+    <div id="player-container"></div>
+    <script disable-devtool-auto src="./dist/disable-devtool.js"></script>
+    <script type="module">
+        import { Player } from './dist/player-ui.js'
+
+        function getUrlParam(name) {
+            // 使用正则表达式解析URL参数
+            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
+            var results = regex.exec(window.location.href);
+            if (!results || !results[2]) return null;
+            return decodeURIComponent(results[2].replace(/\+/g, ' '));
+        }
+        
+        const videoUrl = getUrlParam('url')
+        
+        if (!videoUrl) {
+            alert("播放错误")
+        }
+        // const urlParams = new URLSearchParams(window.location.search)
+        // const videoUrl = urlParams.get('url')
+        const container = document.querySelector('#player-container')
+        new Player({
+            container,
+            enableHardware: false,
+            enableWebGPU: true,
+            enableAudioWebcodec: false,
+            enableVideoWebcodec: false,
+            loop: false,
+            jitterBufferMax: 4,
+            jitterBufferMin: 1,
+            lowLatency: true,
+            isLive: false,
+            checkUseMES: () => false,
+            // video: {
+            //     url: videoUrl
+            // }
+        }).loadSource(videoUrl)
+    </script>
+</body>
+</html>
