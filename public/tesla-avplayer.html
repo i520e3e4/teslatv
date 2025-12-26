@@ -1,24 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tesla AVPlayer</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
-        #player-container { width: 100%; height: 100%; position: relative; }
-        #debug-info { position: absolute; top: 10px; left: 10px; color: lime; font-family: monospace; z-index: 1000; pointer-events: none; }
-        
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #player-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #debug-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: lime;
+            font-family: monospace;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
         /* Custom Controls Overlay (Simplified) */
         #controls {
-            position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.7);
-            padding: 10px; display: flex; align-items: center; z-index: 100; opacity: 0; transition: opacity 0.3s;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s;
         }
-        #player-container:hover #controls { opacity: 1; }
-        button { background: none; border: 1px solid #fff; color: #fff; padding: 5px 10px; cursor: pointer; margin-right: 10px; }
-        input[type="range"] { flex-grow: 1; margin: 0 10px; }
+
+        #player-container:hover #controls {
+            opacity: 1;
+        }
+
+        button {
+            background: none;
+            border: 1px solid #fff;
+            color: #fff;
+            padding: 5px 10px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        input[type="range"] {
+            flex-grow: 1;
+            margin: 0 10px;
+        }
     </style>
 </head>
+
 <body>
     <div id="player-container"></div>
     <div id="debug-info">Initializing...</div>
@@ -28,18 +76,20 @@
         <button id="fullScreenBtn">FS</button>
     </div>
 
-    <!-- Load Local libmedia AVPlayer -->
-    <script src="libs/js/libmedia.avplayer.min.js"></script>
-    
-    <script>
+    <!-- Load Local libmedia AVPlayer (ES Module) -->
+    <script type="module">
+        import AVPlayer from './libs/js/libmedia.avplayer.min.js';
+
         const debugEl = document.getElementById('debug-info');
         function log(msg) {
             console.log(msg);
             debugEl.innerHTML += '<br>' + msg;
-            // Keep only last 5 lines
             const lines = debugEl.innerHTML.split('<br>');
             if (lines.length > 5) debugEl.innerHTML = lines.slice(-5).join('<br>');
         }
+
+        // 挂载到 window 方便调试
+        window.AVPlayer = AVPlayer;
 
         const urlParams = new URLSearchParams(window.location.search);
         const videoUrl = urlParams.get('url');
@@ -48,88 +98,87 @@
             log('Error: No URL provided');
         } else {
             log('Target URL: ' + videoUrl);
-            initPlayer(videoUrl);
+            // 确保 DOM 加载完成
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => initPlayer(videoUrl));
+            } else {
+                initPlayer(videoUrl);
+            }
         }
 
         function initPlayer(url) {
-            if (typeof AVPlayer === 'undefined') {
-                log('Error: AVPlayer library not loaded');
-                return;
-            }
+            log('Initializing AVPlayer...');
 
             const container = document.getElementById('player-container');
-            
-            // AVPlayer Configuration
+
             const playerConfig = {
                 container: container,
-                isLive: url.indexOf('.m3u8') > -1, // Simple detection, can be improved
+                isLive: url.indexOf('.m3u8') > -1,
                 enableWorker: true,
-                enableWebGPU: false, // Start safe
-                
-                // CRITICAL: Disable MSE to force Canvas rendering (which is what bypasses Tesla check)
-                // If MSE is used, it might create a <video> tag which Tesla detects.
-                // However, libmedia might use <video> for MSE?
-                // The goal is to use WASM decoder + Canvas.
-                // Usually "checkUseMES: () => false" forces software/wasm path.
-                checkUseMES: () => false, 
-
-                // WASM Locator
+                enableWebGPU: false,
+                checkUseMES: () => false,
                 getWasm: (type, codecId) => {
                     log(`Loading WASM: ${type} ${codecId}`);
-                    // Mapping based on codecId and type
-                    // Simply return the local path in public/libs/wasm/
                     const wasmBase = 'libs/wasm/';
-                    
                     if (type === 'decoder') {
                         if (codecId === 27) return wasmBase + 'h264-atomic.wasm';
                         if (codecId === 86018) return wasmBase + 'aac-atomic.wasm';
                         if (codecId === 86017) return wasmBase + 'mp3-atomic.wasm';
-                        // Add more as needed
                     }
                     if (type === 'resampler') return wasmBase + 'resample-atomic.wasm';
                     if (type === 'stretchpitcher') return wasmBase + 'stretchpitch-atomic.wasm';
-                    
-                    return ''; // Default fallback
+                    return '';
                 }
             };
 
-            const player = new AVPlayer(playerConfig);
-            window.player = player; // Expose for debugging
+            try {
+                const player = new AVPlayer(playerConfig);
+                window.player = player;
 
-            player.on('ready', () => {
-                log('Player Ready');
-                player.loadSource(url);
-            });
+                player.on('ready', () => {
+                    log('Player Ready');
+                    player.loadSource(url);
+                });
 
-            player.on('play', () => log('Event: Play'));
-            player.on('pause', () => log('Event: Pause'));
-            player.on('error', (e) => log('Error: ' + JSON.stringify(e)));
-            player.on('timeupdate', (t) => {
-                const progress = (t / player.duration) * 100;
-                document.getElementById('progressBar').value = progress;
-            });
+                player.on('play', () => log('Event: Play'));
+                player.on('pause', () => log('Event: Pause'));
+                player.on('error', (e) => log('Error: ' + JSON.stringify(e)));
+                player.on('timeupdate', (t) => {
+                    const progress = (t / player.duration) * 100;
+                    const pb = document.getElementById('progressBar');
+                    if (pb) pb.value = progress;
+                });
 
-            // UI Bindings
-            document.getElementById('playBtn').onclick = () => {
-                if (player.paused) player.play();
-                else player.pause();
-            };
-            
-            document.getElementById('fullScreenBtn').onclick = () => {
-                 if (!document.fullscreenElement) {
-                    container.requestFullscreen().catch(err => {
-                        log(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-                    });
-                } else {
-                    document.exitFullscreen();
+                // UI Bindings
+                const playBtn = document.getElementById('playBtn');
+                if (playBtn) {
+                    playBtn.onclick = () => {
+                        if (player.paused) player.play();
+                        else player.pause();
+                    };
                 }
-            };
 
-             // Auto play handling
-            player.play().catch(e => {
-                log('Auto-play blocked, wait for interaction');
-            });
+                const fsBtn = document.getElementById('fullScreenBtn');
+                if (fsBtn) {
+                    fsBtn.onclick = () => {
+                        if (!document.fullscreenElement) {
+                            container.requestFullscreen().catch(err => {
+                                log(`FS Error: ${err.message}`);
+                            });
+                        } else {
+                            document.exitFullscreen();
+                        }
+                    };
+                }
+
+                player.play().catch(e => {
+                    log('Auto-play blocked');
+                });
+            } catch (err) {
+                log('Init Error: ' + err.message);
+            }
         }
     </script>
 </body>
+
 </html>
