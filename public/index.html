@@ -38,17 +38,59 @@
     <!-- 特斯拉车机检测和行车观影支持 -->
     <script data-cfasync="false">
         (function () {
-            // 检测是否为特斯拉车机浏览器
+            // 创建浮动调试面板 (仅在 Tesla 上或 url 参数 debug=true 时显示)
+            var showDebug = /Tesla/i.test(navigator.userAgent) || window.location.href.includes('debug=true');
+            var debugConsole = null;
+
+            if (showDebug) {
+                debugConsole = document.createElement('div');
+                debugConsole.style.cssText = 'position:fixed;top:0;left:0;width:300px;height:200px;background:rgba(0,0,0,0.8);color:#0f0;font-size:12px;z-index:99999;overflow-y:auto;pointer-events:none;padding:5px;';
+                document.body.appendChild(debugConsole);
+
+                // 重写 console.log
+                var oldLog = console.log;
+                console.log = function () {
+                    oldLog.apply(console, arguments);
+                    if (debugConsole) {
+                        var msg = Array.from(arguments).join(' ');
+                        debugConsole.innerHTML = '<div>' + msg + '</div>' + debugConsole.innerHTML;
+                        if (debugConsole.children.length > 20) debugConsole.lastChild.remove();
+                    }
+                };
+            }
+
+            console.log('[Debug] UA:', navigator.userAgent);
+
+            // 检测是否为特斯拉车机浏览器 (增强检测)
+            // QtWebEngine 是特斯拉浏览器的核心特征
+            var isTesla = /Tesla/i.test(navigator.userAgent) || /QtWebEngine/i.test(navigator.userAgent) || /Linux/i.test(navigator.userAgent) && !/Android/i.test(navigator.userAgent);
+
+            // 调试模式下添加强制按钮
+            if (showDebug) {
+                var btn = document.createElement('button');
+                btn.innerHTML = 'FORCE TESLA MODE';
+                btn.style.cssText = 'position:fixed;top:200px;left:0;z-index:100000;padding:10px;background:red;color:white;font-weight:bold;';
+                btn.onclick = function () {
+                    window.TESLA_CONFIG.isTesla = true;
+                    document.documentElement.classList.add('tesla-browser');
+                    console.log('[Debug] Manually enabled Tesla Mode');
+                    alert('Tesla Mode Enabled. Try playing a video now.');
+                };
+                document.body.appendChild(btn);
+            }
+
             window.TESLA_CONFIG = {
-                isTesla: /Tesla/i.test(navigator.userAgent),
+                isTesla: isTesla,
                 isTheaterMode: window.location.href.includes('tesla_theater=true'),
-                isDriveMode: false  // 将在运行时检测
+                isDriveMode: false
             };
 
             // 如果是特斯拉浏览器，添加标识类
             if (window.TESLA_CONFIG.isTesla) {
                 document.documentElement.classList.add('tesla-browser');
-                console.log('[TeslaTV] 检测到特斯拉车机浏览器');
+                console.log('[TeslaTV] 检测到特斯拉车机浏览器 (Enhanced Detection)');
+            } else {
+                console.log('[TeslaTV] 非特斯拉浏览器');
             }
 
             // 监听来自 iframe 播放器的消息
@@ -4936,12 +4978,14 @@
                     // ========== TeslaTV 特斯拉行车观影模式 ==========
                     // 检测是否为特斯拉浏览器，如果是则使用 AVPlayer 独立页面播放
                     // 这样可以绕过特斯拉在行驶中禁用视频播放的限制
+                    console.log('[PlayCheck] isTesla:', window.TESLA_CONFIG && window.TESLA_CONFIG.isTesla);
                     if (window.TESLA_CONFIG && window.TESLA_CONFIG.isTesla) {
                         const videoTitle = this.currentGroup?.name || '未知视频';
                         console.log('[TeslaTV] 检测到特斯拉浏览器，跳转到 Tesla AVPlayer');
 
                         // 构建播放器 URL
-                        const targetUrl = 'tesla-avplayer.html?url=' + encodeURIComponent(url);
+                        const targetUrl = 'tesla-avplayer.html?url=' + encodeURIComponent(url) + '&ts=' + Date.now();
+                        console.log('[TeslaTV] Redirecting (href):', targetUrl);
                         window.location.href = targetUrl;
                         return; // 提前返回，不使用 DPlayer
                     }
