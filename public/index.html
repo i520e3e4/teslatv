@@ -4934,17 +4934,16 @@
                     console.log('[播放器] dp已存在:', !!dp);
 
                     // ========== TeslaTV 特斯拉行车观影模式 ==========
-                    // 检测是否为特斯拉浏览器，如果是则使用 iframe 全屏播放
+                    // 检测是否为特斯拉浏览器，如果是则使用 AVPlayer 独立页面播放
                     // 这样可以绕过特斯拉在行驶中禁用视频播放的限制
                     if (window.TESLA_CONFIG && window.TESLA_CONFIG.isTesla) {
                         const videoTitle = this.currentGroup?.name || '未知视频';
-                        console.log('[TeslaTV] 检测到特斯拉浏览器，使用 iframe 全屏播放模式');
+                        console.log('[TeslaTV] 检测到特斯拉浏览器，跳转到 Tesla AVPlayer');
 
-                        // 使用全屏 iframe 播放器
-                        if (typeof openTeslaPlayer === 'function') {
-                            openTeslaPlayer(url, videoTitle);
-                            return; // 提前返回，不使用 DPlayer
-                        }
+                        // 构建播放器 URL
+                        const targetUrl = 'tesla-avplayer.html?url=' + encodeURIComponent(url);
+                        window.location.href = targetUrl;
+                        return; // 提前返回，不使用 DPlayer
                     }
 
                     const setupErrorHandling = () => {
