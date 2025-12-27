@@ -158,8 +158,17 @@
             }
         }
 
+        // Environment Check
+        function checkEnvironment() {
+            log(`UA: ${navigator.userAgent}`);
+            log(`Secure Context: ${window.isSecureContext}`);
+            log(`Cross Origin Isolated: ${window.crossOriginIsolated}`);
+            log(`SharedArrayBuffer: ${typeof SharedArrayBuffer !== 'undefined'}`);
+        }
+
         function initPlayer(url) {
             log('Initializing AVPlayer...');
+            checkEnvironment();
 
             const container = document.getElementById('player-container');
 
