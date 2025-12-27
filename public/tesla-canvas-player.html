@@ -74,7 +74,8 @@
             opacity: 1;
             transition: opacity 0.3s ease;
             pointer-events: none;
-            background: rgba(0,0,0,0.01); /* 微弱背景确保点击穿透逻辑正常 */
+            background: rgba(0, 0, 0, 0.01);
+            /* 微弱背景确保点击穿透逻辑正常 */
         }
 
         #controls-overlay.hidden {
@@ -419,43 +420,48 @@
             cursor: pointer;
             margin-bottom: 15px;
         }
-        
+
         .tech-info {
             position: fixed;
             top: 80px;
             right: 20px;
-            color: rgba(255,255,255,0.5);
+            color: rgba(255, 255, 255, 0.5);
             font-size: 10px;
             text-align: right;
             z-index: 5;
         }
+
         #url-panel {
             position: fixed;
             inset: 0;
             display: none;
             align-items: center;
             justify-content: center;
-            background: rgba(0,0,0,0.85);
+            background: rgba(0, 0, 0, 0.85);
             z-index: 300;
         }
+
         #url-panel-inner {
             width: 90%;
             max-width: 640px;
-            background: rgba(20,20,20,0.9);
-            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(20, 20, 20, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 12px;
             padding: 20px;
         }
-        #url-input, #title-input {
+
+        #url-input,
+        #title-input {
             width: 100%;
             padding: 12px 14px;
             border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.25);
+            border: 1px solid rgba(255, 255, 255, 0.25);
             background: #111;
             color: #fff;
             font-size: 14px;
             margin-bottom: 12px;
         }
+
         #url-submit {
             width: 100%;
             padding: 12px 14px;
@@ -498,7 +504,7 @@
         <div class="mode-dot" id="mode-dot"></div>
         <span id="mode-text">WebGL 加速中</span>
     </div>
-    
+
     <div class="tech-info" id="tech-info">
         Core: Loading...
     </div>
@@ -513,11 +519,16 @@
     </div>
 
     <!-- 底部调试栏 (默认隐藏，点击模式指示器3次显示) -->
-    <div id="debug-panel" style="display:none; position:fixed; bottom:20px; right:20px; background:rgba(0,0,0,0.8); padding:10px; border-radius:8px; z-index:200; font-size:12px;">
-        <div style="margin-bottom:5px;"><label><input type="checkbox" id="chk-webgl" checked onchange="updateSettings()"> 启用 WebGL</label></div>
-        <div style="margin-bottom:5px;"><label><input type="checkbox" id="chk-native" onchange="updateSettings()"> 强制原生播放 (No MSE)</label></div>
-        <div style="margin-bottom:5px;"><label><input type="checkbox" id="chk-webgpu" onchange="updateSettings()"> 模拟 WebGPU (实验)</label></div>
-        <button onclick="reloadPlayer()" style="background:#e50914; color:fff; border:none; padding:4px 8px; border-radius:4px;">应用并重启</button>
+    <div id="debug-panel"
+        style="display:none; position:fixed; bottom:20px; right:20px; background:rgba(0,0,0,0.8); padding:10px; border-radius:8px; z-index:200; font-size:12px;">
+        <div style="margin-bottom:5px;"><label><input type="checkbox" id="chk-webgl" checked
+                    onchange="updateSettings()"> 启用 WebGL</label></div>
+        <div style="margin-bottom:5px;"><label><input type="checkbox" id="chk-native" onchange="updateSettings()">
+                强制原生播放 (No MSE)</label></div>
+        <div style="margin-bottom:5px;"><label><input type="checkbox" id="chk-webgpu" onchange="updateSettings()"> 模拟
+                WebGPU (实验)</label></div>
+        <button onclick="reloadPlayer()"
+            style="background:#e50914; color:fff; border:none; padding:4px 8px; border-radius:4px;">应用并重启</button>
     </div>
 
     <!-- 控制层 -->
@@ -571,7 +582,8 @@
     </div>
 
     <!-- HLS.js (使用 CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
+    <!-- HLS.js (使用本地库) -->
+    <script src="libs/js/hls.min.js"></script>
 
     <script>
         // ========== 禁用 Media Session API（绕过特斯拉检测的关键） ==========
@@ -596,11 +608,11 @@
         let controlsTimeout = null;
         let isPlaying = false;
         let useWebGL = true;
-        let useWebGPU = false; 
+        let useWebGPU = false;
         let forceNative = false;
         let audioCtx = null;
         let debugClickCount = 0;
-        
+
         // 从 URL 获取参数
         const urlParams = new URLSearchParams(window.location.search);
         const videoUrl = decodeURIComponent(urlParams.get('url') || '');
@@ -609,19 +621,19 @@
         // 读取设置
         try {
             const savedSettings = JSON.parse(localStorage.getItem('tesla-tv-settings') || '{}');
-            if(savedSettings.useWebGL !== undefined) useWebGL = savedSettings.useWebGL;
-            if(savedSettings.forceNative !== undefined) forceNative = savedSettings.forceNative;
-            if(savedSettings.useWebGPU !== undefined) useWebGPU = savedSettings.useWebGPU;
-            
+            if (savedSettings.useWebGL !== undefined) useWebGL = savedSettings.useWebGL;
+            if (savedSettings.forceNative !== undefined) forceNative = savedSettings.forceNative;
+            if (savedSettings.useWebGPU !== undefined) useWebGPU = savedSettings.useWebGPU;
+
             // 同步到 UI
             document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('chk-webgl').checked = useWebGL;
                 document.getElementById('chk-native').checked = forceNative;
                 document.getElementById('chk-webgpu').checked = useWebGPU;
             });
-        } catch(e) {}
+        } catch (e) { }
 
-        (function() {
+        (function () {
             try {
                 const saved = localStorage.getItem('tesla-tv-settings');
                 if (!saved) {
@@ -632,7 +644,7 @@
                         localStorage.setItem('tesla-tv-settings', JSON.stringify(settings));
                     }
                 }
-            } catch(e) {}
+            } catch (e) { }
         })();
 
         // ========== Audio Context 处理 (防止音频中断) ==========
@@ -685,7 +697,7 @@
 
                 const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vsSource);
                 const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fsSource);
-                
+
                 program = gl.createProgram();
                 gl.attachShader(program, vertexShader);
                 gl.attachShader(program, fragmentShader);
@@ -703,11 +715,11 @@
                 gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
                 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
                     -1.0, -1.0,
-                     1.0, -1.0,
-                    -1.0,  1.0,
-                    -1.0,  1.0,
-                     1.0, -1.0,
-                     1.0,  1.0,
+                    1.0, -1.0,
+                    -1.0, 1.0,
+                    -1.0, 1.0,
+                    1.0, -1.0,
+                    1.0, 1.0,
                 ]), gl.STATIC_DRAW);
 
                 const positionLocation = gl.getAttribLocation(program, "a_position");
@@ -761,7 +773,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             video = document.getElementById('hidden-video');
             canvas = document.getElementById('video-canvas');
-            
+
             // 检查 WebGPU 支持 (仅作展示，实际使用 WebGL)
             if (navigator.gpu) {
                 useWebGPU = true;
@@ -775,11 +787,11 @@
 
             if (!videoUrl) {
                 document.getElementById('url-panel').style.display = 'flex';
-                document.getElementById('url-submit').onclick = function() {
+                document.getElementById('url-submit').onclick = function () {
                     const u = document.getElementById('url-input').value.trim();
                     const t = document.getElementById('title-input').value.trim();
                     if (u) {
-                        const target = location.origin + location.pathname + '?url=' + encodeURIComponent(u) + (t ? '&title='+encodeURIComponent(t) : '');
+                        const target = location.origin + location.pathname + '?url=' + encodeURIComponent(u) + (t ? '&title=' + encodeURIComponent(t) : '');
                         location.href = target;
                     }
                 };
@@ -795,21 +807,21 @@
                 useWebGL = false;
                 document.getElementById('mode-text').textContent = 'Canvas 2D 模式';
             }
-            
+
             if (useWebGPU) {
-                 document.getElementById('tech-info').textContent = 'Core: WebGPU (Sim)';
+                document.getElementById('tech-info').textContent = 'Core: WebGPU (Sim)';
             }
 
             updateLoadingText('正在加载视频流...');
             initPlayer();
             setupEventListeners();
             setupTouchControls();
-            
+
             // 调试面板触发
             document.getElementById('mode-indicator').addEventListener('click', (e) => {
                 e.stopPropagation();
                 debugClickCount++;
-                if(debugClickCount >= 3) {
+                if (debugClickCount >= 3) {
                     document.getElementById('debug-panel').style.display = 'block';
                     debugClickCount = 0;
                 }
@@ -835,14 +847,14 @@
                 initAudioContext();
                 if (document.visibilityState === 'hidden') {
                     if (video && video.paused) {
-                        video.play().catch(() => {});
+                        video.play().catch(() => { });
                     }
                 } else {
                     if (audioCtx && audioCtx.state === 'suspended') {
                         audioCtx.resume();
                     }
                 }
-            } catch(e) {}
+            } catch (e) { }
         });
 
         // ========== 渲染循环 ==========
@@ -850,7 +862,7 @@
             if (video.paused || video.ended) {
                 // 即使暂停也保持渲染（比如拖动进度条时）
                 // 但如果 ended 则停止
-                if(video.ended) return;
+                if (video.ended) return;
             }
 
             // 调整 Canvas 尺寸
@@ -859,7 +871,7 @@
             if (width && height && (canvas.width !== width || canvas.height !== height)) {
                 canvas.width = width;
                 canvas.height = height;
-                if(useWebGL) gl.viewport(0, 0, width, height);
+                if (useWebGL) gl.viewport(0, 0, width, height);
             }
 
             if (width && height) {
@@ -895,7 +907,7 @@
         }
 
         function stopRendering() {
-             if (animationId && !('requestVideoFrameCallback' in video)) {
+            if (animationId && !('requestVideoFrameCallback' in video)) {
                 cancelAnimationFrame(animationId);
             }
             animationId = null;
@@ -940,7 +952,7 @@
                     hls.on(Hls.Events.ERROR, (event, data) => {
                         console.error('HLS Error:', data);
                         if (data.fatal) {
-                            switch(data.type) {
+                            switch (data.type) {
                                 case Hls.ErrorTypes.NETWORK_ERROR:
                                     console.log("fatal network error encountered, try to recover");
                                     hls.startLoad();
@@ -992,21 +1004,21 @@
                 isPlaying = true;
                 startRendering();
                 updatePlayState();
-                try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; } catch(e) {}
+                try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; } catch (e) { }
             });
 
             video.addEventListener('pause', () => {
                 isPlaying = false;
                 stopRendering();
                 updatePlayState();
-                try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; } catch(e) {}
+                try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; } catch (e) { }
             });
 
             video.addEventListener('ended', () => {
                 isPlaying = false;
                 stopRendering();
                 updatePlayState();
-                try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'; } catch(e) {}
+                try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'; } catch (e) { }
             });
 
             video.addEventListener('timeupdate', updateProgress);
@@ -1023,7 +1035,7 @@
 
         function setupTouchControls() {
             const container = document.getElementById('player-container');
-            
+
             // 双击播放/暂停 (中心区域)
             // 双击左侧快退
             // 双击右侧快进
@@ -1062,7 +1074,7 @@
         function updateProgress() {
             const current = video.currentTime;
             const duration = video.duration;
-            
+
             if (isNaN(duration)) return;
 
             document.getElementById('currentTime').textContent = formatTime(current);
@@ -1164,7 +1176,7 @@
                 window.close();
             }
         }
-        
+
         function toggleRenderMode() {
             // 已废弃，改为调试面板
         }

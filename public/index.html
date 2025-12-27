@@ -4984,7 +4984,8 @@
                         console.log('[TeslaTV] 检测到特斯拉浏览器，跳转到 Tesla AVPlayer');
 
                         // 构建播放器 URL
-                        const targetUrl = 'tesla-avplayer.html?url=' + encodeURIComponent(url) + '&ts=' + Date.now();
+                        // 构建播放器 URL (切换到 Canvas Player)
+                        const targetUrl = 'tesla-canvas-player.html?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(videoTitle) + '&ts=' + Date.now();
                         console.log('[TeslaTV] Redirecting (href):', targetUrl);
                         window.location.href = targetUrl;
                         return; // 提前返回，不使用 DPlayer
