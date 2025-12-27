@@ -110,9 +110,34 @@
         const debugEl = document.getElementById('debug-info');
         function log(msg) {
             console.log(msg);
-            debugEl.innerHTML += '<br>' + msg;
+            const time = new Date().toLocaleTimeString();
+            debugEl.innerHTML += `<br>[${time}] ${msg}`;
             const lines = debugEl.innerHTML.split('<br>');
-            if (lines.length > 5) debugEl.innerHTML = lines.slice(-5).join('<br>');
+            // Keep more lines for debugging
+            if (lines.length > 15) debugEl.innerHTML = lines.slice(-15).join('<br>');
+        }
+
+        // Global Error Handlers
+        window.onerror = function (msg, url, lineNo, columnNo, error) {
+            log(`Global Error: ${msg} at line ${lineNo}`);
+            return false;
+        };
+
+        window.onunhandledrejection = function (event) {
+            log(`Unhandled Rejection: ${event.reason}`);
+        };
+
+        // Network Check for valid files
+        function checkFile(url) {
+            return fetch(url, { method: 'HEAD' })
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.ok;
+                })
+                .catch(err => {
+                    log(`File Check Failed: ${url} (${err.message})`);
+                    return false;
+                });
         }
 
         // 挂载到 window 方便调试
@@ -145,24 +170,41 @@
                 enableWebGPU: false,
                 checkUseMES: () => false,
                 getWasm: (type, codecId) => {
-                    log(`Loading WASM: ${type} ${codecId}`);
+                    // Check availability first
                     const wasmBase = 'libs/wasm/';
+                    let filename = '';
                     if (type === 'decoder') {
-                        if (codecId === 27) return wasmBase + 'h264-atomic.wasm';
-                        if (codecId === 86018) return wasmBase + 'aac-atomic.wasm';
-                        if (codecId === 86017) return wasmBase + 'mp3-atomic.wasm';
+                        if (codecId === 27) filename = 'h264-atomic.wasm';
+                        if (codecId === 86018) filename = 'aac-atomic.wasm';
+                        if (codecId === 86017) filename = 'mp3-atomic.wasm';
                     }
-                    if (type === 'resampler') return wasmBase + 'resample-atomic.wasm';
-                    if (type === 'stretchpitcher') return wasmBase + 'stretchpitch-atomic.wasm';
+                    if (type === 'resampler') filename = 'resample-atomic.wasm';
+                    if (type === 'stretchpitcher') filename = 'stretchpitch-atomic.wasm';
+
+                    if (filename) {
+                        const fullPath = wasmBase + filename;
+                        log(`Requesting WASM: ${filename}`);
+                        return fullPath;
+                    }
                     return '';
                 }
             };
+
+            // Pre-check main WASM files
+            checkFile('libs/wasm/h264-atomic.wasm').then(ok => {
+                if (ok) log('WASM h264 Check: OK');
+            });
 
             try {
                 const player = new AVPlayer(playerConfig);
                 window.player = player;
 
+                const initTimeout = setTimeout(() => {
+                    log('WARNING: Player init timeout (10s). Ready event not fired.');
+                }, 10000);
+
                 player.on('ready', () => {
+                    clearTimeout(initTimeout);
                     log('Player Ready');
                     player.loadSource(url);
                     attemptAutoPlay();
