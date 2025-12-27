@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tesla AVPlayer</title>
+    <title>Tesla AVPlayer (Jessibuca)</title>
     <style>
         body,
         html {
@@ -30,9 +30,10 @@
             font-family: monospace;
             z-index: 1000;
             pointer-events: none;
+            text-shadow: 1px 1px 2px black;
         }
 
-        /* Custom Controls Overlay (Simplified) */
+        /* Custom Controls Overlay */
         #controls {
             position: absolute;
             bottom: 0;
@@ -88,194 +89,194 @@
             cursor: pointer;
         }
     </style>
+    <!-- Import Jessibuca -->
+    <script src="./libs/jessibuca/jessibuca.js"></script>
 </head>
 
 <body>
     <div id="player-container"></div>
-    <div id="debug-info">Initializing...</div>
+    <div id="debug-info">Initializing Jessibuca...</div>
     <div id="controls">
         <button id="playBtn">Play</button>
+        <button id="muteBtn">Mute</button>
+        <div style="color:white; margin-right:10px;" id="timeDisplay">00:00 / 00:00</div>
+        <!-- Progress bar in live stream is often not useful, but keeping it for VOD -->
         <input type="range" id="progressBar" value="0" min="0" max="100" step="0.1">
         <button id="fullScreenBtn">FS</button>
+        <button id="reloadBtn">Reload</button>
     </div>
 
     <div id="start-overlay">
         <button id="startBtn">Tap to Play</button>
     </div>
 
-    <!-- Load Local libmedia AVPlayer (ES Module) -->
-    <script type="module">
-        import AVPlayer from './libs/js/libmedia.avplayer.min.js';
-
+    <script>
         const debugEl = document.getElementById('debug-info');
         function log(msg) {
             console.log(msg);
             const time = new Date().toLocaleTimeString();
             debugEl.innerHTML += `<br>[${time}] ${msg}`;
             const lines = debugEl.innerHTML.split('<br>');
-            // Keep more lines for debugging
             if (lines.length > 15) debugEl.innerHTML = lines.slice(-15).join('<br>');
         }
 
-        // Global Error Handlers
         window.onerror = function (msg, url, lineNo, columnNo, error) {
             log(`Global Error: ${msg} at line ${lineNo}`);
             return false;
         };
 
-        window.onunhandledrejection = function (event) {
-            log(`Unhandled Rejection: ${event.reason}`);
-        };
-
-        // Network Check for valid files
-        function checkFile(url) {
-            return fetch(url, { method: 'HEAD' })
-                .then(res => {
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    return res.ok;
-                })
-                .catch(err => {
-                    log(`File Check Failed: ${url} (${err.message})`);
-                    return false;
-                });
-        }
-
-        // 挂载到 window 方便调试
-        window.AVPlayer = AVPlayer;
-
         const urlParams = new URLSearchParams(window.location.search);
         const videoUrl = urlParams.get('url');
 
-        if (!videoUrl) {
-            log('Error: No URL provided');
-        } else {
-            log('Target URL: ' + videoUrl);
-            // 确保 DOM 加载完成
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', () => initPlayer(videoUrl));
-            } else {
-                initPlayer(videoUrl);
+        let jessibuca = null;
+
+        function initPlayer() {
+            if (!videoUrl) {
+                log('Error: No URL provided');
+                return;
             }
-        }
 
-        // Environment Check
-        function checkEnvironment() {
-            log(`UA: ${navigator.userAgent}`);
-            log(`Secure Context: ${window.isSecureContext}`);
-            log(`Cross Origin Isolated: ${window.crossOriginIsolated}`);
-            log(`SharedArrayBuffer: ${typeof SharedArrayBuffer !== 'undefined'}`);
-        }
-
-        function initPlayer(url) {
-            log('Initializing AVPlayer...');
-            checkEnvironment();
-
+            log(`Target URL: ${videoUrl}`);
             const container = document.getElementById('player-container');
 
-            const playerConfig = {
-                container: container,
-                isLive: url.indexOf('.m3u8') > -1,
-                enableWorker: true,
-                enableWebGPU: false,
-                checkUseMES: () => false,
-                getWasm: (type, codecId) => {
-                    // Check availability first
-                    const wasmBase = 'libs/wasm/';
-                    let filename = '';
-                    if (type === 'decoder') {
-                        if (codecId === 27) filename = 'h264-atomic.wasm';
-                        if (codecId === 86018) filename = 'aac-atomic.wasm';
-                        if (codecId === 86017) filename = 'mp3-atomic.wasm';
-                    }
-                    if (type === 'resampler') filename = 'resample-atomic.wasm';
-                    if (type === 'stretchpitcher') filename = 'stretchpitch-atomic.wasm';
-
-                    if (filename) {
-                        const fullPath = wasmBase + filename;
-                        log(`Requesting WASM: ${filename}`);
-                        return fullPath;
-                    }
-                    return '';
-                }
-            };
-
-            // Pre-check main WASM files
-            checkFile('libs/wasm/h264-atomic.wasm').then(ok => {
-                if (ok) log('WASM h264 Check: OK');
-            });
+            // Force single-threaded mode / non-atomic WASM friendly settings if possible
+            // Jessibuca generally handles correct WASM loading if decoder.js is correct.
+            // In Tesla, SharedArrayBuffer is missing, so we rely on Jessibuca's fallback or single-thread mode.
 
             try {
-                const player = new AVPlayer(playerConfig);
-                window.player = player;
-
-                const initTimeout = setTimeout(() => {
-                    log('WARNING: Player init timeout (10s). Ready event not fired.');
-                }, 10000);
-
-                player.on('ready', () => {
-                    clearTimeout(initTimeout);
-                    log('Player Ready');
-                    player.loadSource(url);
-                    attemptAutoPlay();
+                jessibuca = new Jessibuca({
+                    container: container,
+                    videoBuffer: 0.5,
+                    decoder: './libs/jessibuca/decoder.js', // Explicitly point to our local decoder
+                    isResize: false,
+                    loadingText: 'Loading...',
+                    hasAudio: true,
+                    debug: true,
+                    supportDblclickFullscreen: true,
+                    showBandwidth: true, // Show network speed
+                    operateBtns: {
+                        fullscreen: false, // We use custom buttons
+                        screenshot: false,
+                        play: false,
+                        audio: false,
+                    },
+                    forceNoOffscreen: true, // Critical for environments with strict DOM/Worker isolation or no OffscreenCanvas
+                    isNotMute: false, // Start muted to help autoplay, user can unmute
                 });
 
-                player.on('play', () => log('Event: Play'));
-                player.on('pause', () => log('Event: Pause'));
-                player.on('error', (e) => log('Error: ' + JSON.stringify(e)));
-                player.on('timeupdate', (t) => {
-                    const progress = (t / player.duration) * 100;
-                    const pb = document.getElementById('progressBar');
-                    if (pb) pb.value = progress;
+                window.player = jessibuca; // Expose for debugging
+
+                // Event Listeners
+                jessibuca.on('load', () => log('Event: Loading...'));
+                jessibuca.on('timeUpdate', (ts) => {
+                    // ts is usually current timestamp
+                    // Update UI if needed. For live streams, duration might be infinite.
+                });
+                jessibuca.on('videoInfo', (info) => {
+                    log(`Video Info: ${info.width}x${info.height}`);
+                });
+                jessibuca.on('error', (error) => {
+                    log('Jessibuca Error: ' + JSON.stringify(error));
+                });
+                jessibuca.on('timeout', () => {
+                    log('Event: Timeout');
+                });
+                jessibuca.on('start', () => {
+                    log('Event: Start Playback');
+                    document.getElementById('start-overlay').style.display = 'none';
+                    updatePlayBtnState(true);
+                });
+                jessibuca.on('pause', () => {
+                    log('Event: Pause');
+                    updatePlayBtnState(false);
+                });
+                jessibuca.on('play', () => {
+                    log('Event: Play');
+                    updatePlayBtnState(true);
                 });
 
-                // UI Bindings
-                const playBtn = document.getElementById('playBtn');
-                if (playBtn) {
-                    playBtn.onclick = () => {
-                        if (player.paused) player.play();
-                        else player.pause();
-                    };
-                }
+                // Play
+                jessibuca.play(videoUrl).then(() => {
+                    log('Play request success');
+                }).catch(e => {
+                    log('Play failed: ' + e.message);
+                    document.getElementById('start-overlay').style.display = 'flex';
+                });
 
-                const fsBtn = document.getElementById('fullScreenBtn');
-                if (fsBtn) {
-                    fsBtn.onclick = () => {
-                        if (!document.fullscreenElement) {
-                            container.requestFullscreen().catch(err => {
-                                log(`FS Error: ${err.message}`);
-                            });
-                        } else {
-                            document.exitFullscreen();
-                        }
-                    };
-                }
-
-                // Removed immediate player.play() call to avoid race condition
-
-                function attemptAutoPlay() {
-                    player.play().catch(e => {
-                        log('Auto-play blocked');
-                        // Show start overlay
-                        const startOverlay = document.getElementById('start-overlay');
-                        if (startOverlay) {
-                            startOverlay.style.display = 'flex';
-                            const startBtn = document.getElementById('startBtn');
-                            startBtn.onclick = () => {
-                                startOverlay.style.display = 'none'; // Hide immediately to prevent double clicks
-                                player.play().then(() => {
-                                    log('Playback started');
-                                }).catch(err => {
-                                    log('Play Error: ' + (err.message || JSON.stringify(err)));
-                                    startOverlay.style.display = 'flex'; // Show again if failed
-                                });
-                            };
-                        }
-                    });
-                }
             } catch (err) {
-                log('Init Error: ' + err.message);
+                log('Init Exception: ' + err.message);
             }
         }
+
+        // UI Controls
+        const playBtn = document.getElementById('playBtn');
+        const muteBtn = document.getElementById('muteBtn');
+        const fsBtn = document.getElementById('fullScreenBtn');
+        const reloadBtn = document.getElementById('reloadBtn');
+        const startBtn = document.getElementById('startBtn');
+
+        function updatePlayBtnState(playing) {
+            if (playing) {
+                playBtn.innerText = "Pause";
+            } else {
+                playBtn.innerText = "Play";
+            }
+        }
+
+        playBtn.onclick = () => {
+            if (jessibuca) {
+                // We rely on the button text or internal state inferred from events
+                if (playBtn.innerText === "Pause") {
+                    jessibuca.pause();
+                } else {
+                    jessibuca.play(videoUrl); // or jessibuca.play() if already loaded?
+                }
+            }
+        };
+
+        muteBtn.onclick = () => {
+            if (jessibuca) {
+                if (jessibuca.isMute()) {
+                    jessibuca.mute(false);
+                    muteBtn.innerText = "Mute";
+                } else {
+                    jessibuca.mute(true);
+                    muteBtn.innerText = "Unmute";
+                }
+            }
+        };
+
+        fsBtn.onclick = () => {
+            if (jessibuca) {
+                jessibuca.setFullscreen(!jessibuca.isFullscreen());
+            }
+        };
+
+        reloadBtn.onclick = () => {
+            if (jessibuca) {
+                jessibuca.destroy();
+                setTimeout(initPlayer, 500);
+            } else {
+                window.location.reload();
+            }
+        }
+
+        startBtn.onclick = () => {
+            document.getElementById('start-overlay').style.display = 'none';
+            if (jessibuca) {
+                jessibuca.play(videoUrl).catch(e => log('Manual play err: ' + e.message));
+            } else {
+                initPlayer();
+            }
+        };
+
+        // Start
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPlayer);
+        } else {
+            initPlayer();
+        }
+
     </script>
 </body>
 
