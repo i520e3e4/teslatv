@@ -165,6 +165,7 @@
                 player.on('ready', () => {
                     log('Player Ready');
                     player.loadSource(url);
+                    attemptAutoPlay();
                 });
 
                 player.on('play', () => log('Event: Play'));
@@ -198,23 +199,28 @@
                     };
                 }
 
-                player.play().catch(e => {
-                    log('Auto-play blocked');
-                    // Show start overlay
-                    const startOverlay = document.getElementById('start-overlay');
-                    if (startOverlay) {
-                        startOverlay.style.display = 'flex';
-                        const startBtn = document.getElementById('startBtn');
-                        startBtn.onclick = () => {
-                            player.play().then(() => {
-                                startOverlay.style.display = 'none';
-                                log('Playback started');
-                            }).catch(err => {
-                                log('Play Error: ' + err.message);
-                            });
-                        };
-                    }
-                });
+                // Removed immediate player.play() call to avoid race condition
+
+                function attemptAutoPlay() {
+                    player.play().catch(e => {
+                        log('Auto-play blocked');
+                        // Show start overlay
+                        const startOverlay = document.getElementById('start-overlay');
+                        if (startOverlay) {
+                            startOverlay.style.display = 'flex';
+                            const startBtn = document.getElementById('startBtn');
+                            startBtn.onclick = () => {
+                                startOverlay.style.display = 'none'; // Hide immediately to prevent double clicks
+                                player.play().then(() => {
+                                    log('Playback started');
+                                }).catch(err => {
+                                    log('Play Error: ' + (err.message || JSON.stringify(err)));
+                                    startOverlay.style.display = 'flex'; // Show again if failed
+                                });
+                            };
+                        }
+                    });
+                }
             } catch (err) {
                 log('Init Error: ' + err.message);
             }
