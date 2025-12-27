@@ -1,0 +1,8 @@
+# Enable SharedArrayBuffer for Tesla AVPlayer
+/tesla-avplayer.html
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Opener-Policy: same-origin
+
+# Ensure WASM files are served correctly
+/libs/wasm/*
+  Cross-Origin-Resource-Policy: same-origin
