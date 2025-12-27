@@ -7,8 +7,8 @@
     <meta name="referrer" content="no-referrer">
     <title>TeslaTV Pro Player</title>
 
-    <!-- 关键：告诉特斯拉浏览器这是一个独立页面 -->
-    <meta name="tesla-theater" content="true">
+    <!-- 移除 tesla-theater 标签以允许行车播放 -->
+    <!-- <meta name="tesla-theater" content="true"> -->
 
     <style>
         * {
@@ -54,10 +54,9 @@
             position: absolute;
             width: 1px;
             height: 1px;
-            opacity: 0;
+            opacity: 0.001;
+            /* 关键：保持微弱可见性防止被浏览器优化停止解码 */
             pointer-events: none;
-            /* 关键：让 Tesla 检测不到这是视频播放 */
-            visibility: hidden;
             z-index: -1;
             top: -1000px;
             left: -1000px;
