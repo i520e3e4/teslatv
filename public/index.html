@@ -4981,11 +4981,11 @@
                     console.log('[PlayCheck] isTesla:', window.TESLA_CONFIG && window.TESLA_CONFIG.isTesla);
                     if (window.TESLA_CONFIG && window.TESLA_CONFIG.isTesla) {
                         const videoTitle = this.currentGroup?.name || '未知视频';
-                        console.log('[TeslaTV] Tesla detected, injecting Sandboxed Iframe (Opaque Origin Strategy)');
+                        console.log('[TeslaTV] Tesla detected, injecting Sandboxed Iframe with Canvas Player');
 
                         const container = document.getElementById('dplayer');
                         if (container) {
-                            // Clear container
+                            // Clear container and styling
                             container.innerHTML = '';
                             container.style.background = '#000';
                             container.style.display = 'flex';
@@ -4998,68 +4998,32 @@
                             iframe.style.height = '100%';
                             iframe.style.border = 'none';
 
+                            // 允许全屏
+                            iframe.allowFullscreen = true;
+                            iframe.setAttribute('allowfullscreen', 'true');
+
+                            // Canvas Player URL
+                            const playerUrl = 'tesla-canvas-player.html?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(videoTitle);
+                            iframe.src = playerUrl;
+
                             // CRITICAL: Sandboxed to force OPAQUE ORIGIN
-                            // allow-scripts: run JS
-                            // allow-forms: allow inputs
-                            // NO allow-same-origin: This blocks parent access (Tesla scripts)
-                            iframe.sandbox = 'allow-scripts allow-forms';
+                            // Keeping allow-scripts and allow-forms
+                            // NOTE: If relative paths in canvas player fail, we might need a different approach (blob url or same-origin),
+                            // but for now we try strict isolation to beat the car ban.
+                            iframe.sandbox = 'allow-scripts allow-forms allow-same-origin';
+                            // Added 'allow-same-origin' temporarily because separating the file means it likely needs to load itself.
+                            // However, to mimic GodTV, they use 'allow-same-origin' but Cross-Domain.
+                            // Since we are Same-Domain, 'allow-same-origin' might expose us to detection.
+                            // BUT, without it, a relative 'src' might not load at all in some browsers.
+                            // Let's try WITHOUT allow-same-origin first if possible? 
+                            // Actually, Chrome treats 'src="file.html"' in opaque sandbox as error usually?
+                            // Let's stick to what GodTV did: They DO have 'allow-same-origin'. 
+                            // The key is likely the Canvas rendering itself + Iframe boundary.
+                            // USER said "Sandboxed Iframe (Opaque)" failed. 
+                            // So let's bring back allow-same-origin BUT rely on Canvas Player (tesla-canvas-player.html) to hide the video tag.
 
-                            // Inner Player HTML (Standard Video + HLS, Isolated)
-                            const playerHtml = `
-                                <!DOCTYPE html>
-                                <html>
-                                <head>
-                                    <meta charset="utf-8">
-                                    <meta name="viewport" content="width=device-width, initial-scale=1">
-                                    <style>
-                                        body { margin:0; background:#000; overflow:hidden; display:flex; justify-content:center; align-items:center; height:100vh; }
-                                        video { width:100%; height:100%; outline:none; }
-                                    </style>
-                                </head>
-                                <body>
-                                    <video id="v-player" controls playsinline autoplay style="width:100%;height:100%;"></video>
-                                    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"><\/script>
-                                    <script>
-                                        const video = document.getElementById('v-player');
-                                        const url = "${url}";
-                                        
-                                        if(Hls.isSupported()) {
-                                            const hls = new Hls({
-                                                debug: false,
-                                                enableWorker: true
-                                            });
-                                            hls.loadSource(url);
-                                            hls.attachMedia(video);
-                                            hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                                                video.play().catch(e => console.log('Autoplay blocked:', e));
-                                            });
-                                            hls.on(Hls.Events.ERROR, function(event, data) {
-                                                if(data.fatal) {
-                                                    switch(data.type) {
-                                                    case Hls.ErrorTypes.NETWORK_ERROR:
-                                                        hls.startLoad();
-                                                        break;
-                                                    case Hls.ErrorTypes.MEDIA_ERROR:
-                                                        hls.recoverMediaError();
-                                                        break;
-                                                    default:
-                                                        hls.destroy();
-                                                        break;
-                                                    }
-                                                }
-                                            });
-                                        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                                            video.src = url;
-                                            video.addEventListener('loadedmetadata', function() {
-                                                video.play();
-                                            });
-                                        }
-                                    <\/script>
-                                </body>
-                                </html>
-                            `;
+                            iframe.sandbox = 'allow-scripts allow-forms allow-same-origin allow-presentation';
 
-                            iframe.srcdoc = playerHtml;
                             container.appendChild(iframe);
                             return; // Stop execution, do not init DPlayer
                         }
