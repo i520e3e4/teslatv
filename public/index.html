@@ -3526,7 +3526,38 @@
                     return [...this.fastSources, ...this.slowSources];
                 }
             },
+            created() {
+                // Global listener for Tesla Player Video Ended
+                window.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'TESLA_VIDEO_ENDED') {
+                        console.log('[TeslaTV] Video ended, Auto-playing next episode...');
+                        this.playNextEpisode();
+                    }
+                });
+            },
             methods: {
+                // Auto play next episode for Tesla Mode
+                playNextEpisode() {
+                    if (!this.episodeList || this.episodeList.length === 0) return;
+
+                    const currentIndex = this.episodeList.findIndex(ep => ep.url === this.currentUrl);
+                    if (currentIndex >= 0 && currentIndex < this.episodeList.length - 1) {
+                        const nextEp = this.episodeList[currentIndex + 1];
+                        console.log('[TeslaTV] Playing next:', nextEp.name);
+
+                        // Call play (which handles Tesla check again)
+                        this.play(nextEp.url);
+
+                        // Show toast
+                        const toast = document.createElement('div');
+                        toast.textContent = `即将播放下一集: ${nextEp.name}`;
+                        toast.style.cssText = "position:fixed; top:20%; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:#fff; padding:10px 20px; border-radius:20px; z-index:999999;";
+                        document.body.appendChild(toast);
+                        setTimeout(() => toast.remove(), 3000);
+                    } else {
+                        console.log('[TeslaTV] No more episodes.');
+                    }
+                },
                 async initApp() {
                     // 防止重复初始化
                     if (this._appInitialized) return;
