@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tesla Bypass Research Lab</title>
+    <style>
+        body {
+            background: #111;
+            color: #fff;
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        .test-box {
+            border: 1px solid #333;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #222;
+        }
+
+        h3 {
+            margin-top: 0;
+            color: #0f0;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #444;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background: #666;
+        }
+
+        .status {
+            margin-left: 10px;
+            color: #aaa;
+        }
+
+        iframe {
+            width: 100%;
+            height: 200px;
+            border: 1px solid #555;
+            background: #000;
+            margin-top: 10px;
+        }
+
+        video {
+            width: 100%;
+            height: 200px;
+            background: #000;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Tesla 行车限制绕过测试实验室</h1>
+    <p>请在特斯拉处于 D 档（行车模式）下测试以下方案。</p>
+
+    <!-- Test 1: Control Group -->
+    <div class="test-box">
+        <h3>TEST 1: 普通 Video 标签 (对照组)</h3>
+        <p>预期结果：D 档黑屏 (Black Screen in Drive)</p>
+        <video controls playsinline>
+            <source src="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" type="application/x-mpegURL">
+            Your browser does not support video.
+        </video>
+        <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+        <script>
+            if (Hls.isSupported()) {
+                var video = document.querySelector('video');
+                var hls = new Hls();
+                hls.loadSource('https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8');
+                hls.attachMedia(video);
+            }
+        </script>
+    </div>
+
+    <!-- Test 2: Anonymous Iframe Injection -->
+    <div class="test-box">
+        <h3>TEST 2: 动态匿名 Iframe (Trae 理论验证)</h3>
+        <p>原理：创建一个无 URL 的 iframe，直接写入 video 标签，试图绕过域名检测。</p>
+        <button onclick="injectAnonymousIframe()">注入匿名播放器</button>
+        <div id="container2"></div>
+    </div>
+
+    <!-- Test 3: Blob Iframe -->
+    <div class="test-box">
+        <h3>TEST 3: Blob URL Iframe</h3>
+        <p>原理：将 iframe 源码转为 Blob 对象加载，隔离上下文。</p>
+        <button onclick="injectBlobIframe()">注入 Blob 播放器</button>
+        <div id="container3"></div>
+    </div>
+
+    <script>
+        // HLS URL for testing
+        const STREAM_URL = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+
+        // Template for inner player
+        const getPlayerHtml = (id) => `
+            <!DOCTYPE html>
+            <html>
+            <body style="margin:0;background:#000;display:flex;justify-content:center;align-items:center;">
+                <video id="${id}" controls playsinline style="width:100%;height:100%;" autoplay muted></video>
+                <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"><\/script>
+                <script>
+                    var video = document.getElementById('${id}');
+                    if(Hls.isSupported()) {
+                        var hls = new Hls();
+                        hls.loadSource('${STREAM_URL}');
+                        hls.attachMedia(video);
+                        hls.on(Hls.Events.MANIFEST_PARSED,function() {
+                            video.play();
+                        });
+                    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                        video.src = '${STREAM_URL}';
+                        video.addEventListener('loadedmetadata',function() {
+                            video.play();
+                        });
+                    }
+                <\/script>
+            </body>
+            </html>
+        `;
+
+        function injectAnonymousIframe() {
+            const container = document.getElementById('container2');
+            container.innerHTML = ''; // Clear
+
+            const iframe = document.createElement('iframe');
+            iframe.style.width = '100%';
+            iframe.style.height = '240px';
+            iframe.style.border = 'none';
+            container.appendChild(iframe);
+
+            const doc = iframe.contentWindow.document;
+            doc.open();
+            doc.write(getPlayerHtml('v2'));
+            doc.close();
+            console.log(" injected anonymous iframe");
+        }
+
+        function injectBlobIframe() {
+            const container = document.getElementById('container3');
+            container.innerHTML = ''; // Clear
+
+            const htmlContent = getPlayerHtml('v3');
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+
+            const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.style.width = '100%';
+            iframe.style.height = '240px';
+            iframe.style.border = 'none';
+            container.appendChild(iframe);
+            console.log(" injected blob iframe");
+        }
+    </script>
+</body>
+
+</html>
