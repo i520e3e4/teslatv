@@ -66,12 +66,18 @@ export async function onRequest(context) {
     }
 
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s Timeout
+
         const response = await fetch(tmdbUrl, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             },
-            cf: { cacheTtl: 36000 } // 缓存 10 小时
+            cf: { cacheTtl: 36000 }, // 缓存 10 小时
+            signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             console.error('[TMDB Proxy] Request failed:', response.status, response.statusText);

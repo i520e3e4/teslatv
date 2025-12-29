@@ -70,9 +70,14 @@ export async function onRequest(context) {
     const remoteDbUrl = env.REMOTE_DB_URL;
     if (remoteDbUrl) {
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
             const response = await fetch(remoteDbUrl, {
-                cf: { cacheTtl: 300 } // 缓存 5 分钟
+                cf: { cacheTtl: 300 }, // 缓存 5 分钟
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
             if (response.ok) {
                 const data = await response.json();
                 if (data && Array.isArray(data.sites)) {
@@ -92,12 +97,18 @@ export async function onRequest(context) {
     try {
         console.log('[Sites] Fetching from LunaTV-config:', lunaTVUrl);
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+
         const response = await fetch(lunaTVUrl, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             },
-            cf: { cacheTtl: 7200 } // 缓存 2 小时（与 LunaTV-config 推荐一致）
+            cf: { cacheTtl: 7200 }, // 缓存 2 小时（与 LunaTV-config 推荐一致）
+            signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
             const data = await response.json();

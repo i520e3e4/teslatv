@@ -4564,49 +4564,44 @@
                     if (window.navigator.vibrate) window.navigator.vibrate(10);
                 },
 
-                // 初始化榜单 (优先加载首屏可见榜单)
+                // 初始化榜单 (使用 IntersectionObserver 实现懒加载)
                 fetchAllLists() {
-                    const keys = Object.keys(this.rowConfigs);
+                    console.log('[性能优化] 启动榜单懒加载观察者');
 
-                    // 设备检测（仅用于日志）
-                    const viewportWidth = window.innerWidth;
-                    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-                    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                    const isMobile = viewportWidth < 768 || (isTouchDevice && viewportWidth < 1024) || isMobileUA;
+                    const options = {
+                        root: null, // viewport
+                        rootMargin: '200px', // 提前 200px 加载
+                        threshold: 0.01
+                    };
 
-                    console.log(`[设备检测] 宽度=${viewportWidth}, 触摸=${isTouchDevice}, UA移动=${isMobileUA}, 判定=${isMobile ? '移动端' : '桌面端'}`);
-
-                    // 性能优化：优先加载首屏可见榜单 (前4个)
-                    const priorityKeys = keys.slice(0, 4);
-                    const deferredKeys = keys.slice(4);
-
-                    console.log(`[榜单加载] 优先加载 ${priorityKeys.length} 个首屏榜单`);
-
-                    // 立即并行加载优先榜单
-                    priorityKeys.forEach((key, index) => {
-                        setTimeout(() => {
-                            this.fetchRow(key);
-                        }, index * 100); // 更短的间隔
-                    });
-
-                    // 延迟加载剩余榜单 (页面空闲时)
-                    if (deferredKeys.length > 0) {
-                        const loadDeferred = () => {
-                            console.log(`[榜单加载] 加载剩余 ${deferredKeys.length} 个榜单`);
-                            deferredKeys.forEach((key, index) => {
-                                setTimeout(() => {
+                    const observer = new IntersectionObserver((entries) => {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                const key = entry.target.getAttribute('data-row-key');
+                                if (key && !this.rowLists[key]) {
+                                    console.log(`[懒加载] 发现视口区域: ${key}, 开始抓取数据...`);
                                     this.fetchRow(key);
-                                }, index * 150);
-                            });
-                        };
+                                    // 加载后停止观察该行
+                                    observer.unobserve(entry.target);
+                                }
+                            }
+                        });
+                    }, options);
 
-                        // 使用 requestIdleCallback 或 setTimeout 延迟加载
-                        if ('requestIdleCallback' in window) {
-                            requestIdleCallback(loadDeferred, { timeout: 2000 });
-                        } else {
-                            setTimeout(loadDeferred, 1000);
-                        }
-                    }
+                    // 在下次 DOM 更新后开始观察这些行
+                    this.$nextTick(() => {
+                        const rows = document.querySelectorAll('.section-container[data-row-key]');
+                        rows.forEach(row => {
+                            const key = row.getAttribute('data-row-key');
+                            // 针对首屏最热门的前 2 个榜单，由于可能已经可见，立即加载
+                            const priorityKeys = ['randomRow', 'movieRow'];
+                            if (priorityKeys.includes(key)) {
+                                this.fetchRow(key);
+                            } else {
+                                observer.observe(row);
+                            }
+                        });
+                    });
                 },
 
                 // 🎲 核心：全类别随机混搭抓取 (优化版：使用日期种子确保缓存命中)
