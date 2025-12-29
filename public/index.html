@@ -1436,6 +1436,219 @@
             pointer-events: none;
         }
 
+        /* 28. 播放详情页重构 - 侧边栏布局 */
+        .detail-overlay {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 2000;
+            display: none;
+            overflow-y: auto;
+            color: #fff;
+        }
+
+        .detail-overlay.active {
+            display: block;
+        }
+
+        .player-layout {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100vh;
+            background: #000;
+            position: relative;
+        }
+
+        @media (min-width: 1024px) {
+            .player-layout {
+                flex-direction: row;
+            }
+        }
+
+        /* 视频主区域 */
+        .player-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: #000;
+            min-height: 0;
+        }
+
+        .player-box {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            position: relative;
+        }
+
+        @media (min-width: 1024px) {
+            .player-box {
+                height: 100%;
+                aspect-ratio: auto;
+            }
+        }
+
+        /* 侧边栏 */
+        .player-sidebar {
+            width: 100%;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        @media (min-width: 1024px) {
+            .player-sidebar {
+                width: 380px;
+                height: 100%;
+            }
+
+            .player-sidebar.hidden {
+                width: 0;
+                border: none;
+                opacity: 0;
+            }
+        }
+
+        /* 侧边栏 Tab */
+        .sidebar-tabs {
+            display: flex;
+            padding: 15px;
+            gap: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-tab-btn {
+            flex: 1;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #888;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .sidebar-tab-btn.active {
+            background: rgba(229, 9, 20, 0.2);
+            border-color: #e50914;
+            color: #fff;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        /* 侧边栏显示/隐藏切换器 */
+        .sidebar-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 2100;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 6px 15px;
+            border-radius: 20px;
+            color: #fff;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .sidebar-toggle:hover {
+            background: rgba(229, 9, 20, 0.8);
+            border-color: #e50914;
+        }
+
+        .sidebar-toggle .dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        /* 侧边栏选集网格调整 */
+        .sidebar-ep-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 10px;
+        }
+
+        /* 侧边栏线路列表调整 */
+        .sidebar-source-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            gap: 12px;
+        }
+
+        .sidebar-source-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateX(5px);
+        }
+
+        .sidebar-source-item.active {
+            background: rgba(229, 9, 20, 0.1);
+            border-color: rgba(229, 9, 20, 0.3);
+            border-left: 4px solid #e50914;
+        }
+
+        .sidebar-source-item img {
+            width: 40px;
+            height: 56px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .source-info {
+            flex: 1;
+        }
+
+        .source-name {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .source-latency {
+            font-size: 11px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .source-tag {
+            font-size: 9px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            color: #fff;
+            margin-left: auto;
+        }
+
+        /* 分类标题与排序切换 */
         .section-header {
             display: flex;
             align-items: center;
@@ -3083,31 +3296,40 @@
         </div>
 
         <!-- ★★★ 播放详情页 (影院布局) ★★★ -->
-        <div class="detail-overlay" :class="{ active: showDetail }">
-            <div class="close-btn" @click="closeDetail"><i class="fas fa-times"></i></div>
+        <div class="player-layout" v-if="currentGroup">
 
-            <div class="player-layout" v-if="currentGroup">
+            <!-- 侧边栏切换按钮 (右上角) -->
+            <div class="sidebar-toggle" @click="sidebarVisible = !sidebarVisible" v-if="showDetail">
+                <i :class="['fas', sidebarVisible ? 'fa-chevron-right' : 'fa-chevron-left']"></i>
+                <span>{{ sidebarVisible ? '隐藏' : '显示' }}</span>
+                <span class="dot"></span>
+            </div>
 
-                <!-- 1. 顶部：标题栏 + 投屏 -->
-                <div class="video-header">
-                    <div>
-                        <h1 class="video-title">{{ currentGroup.name }}</h1>
-                        <div class="video-meta">
-                            正在播放: <span class="text-white fw-bold">{{ currentSource?.site_name }}</span>
-                        </div>
+            <!-- 1. 左侧：视频主区域 -->
+            <div class="player-main">
+                <!-- 视频标题栏 -->
+                <div class="video-header" style="padding: 20px 30px;">
+                    <div @click="closeDetail" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-arrow-left"></i>
+                        <h1 class="video-title" style="margin:0">{{ currentGroup.name }}</h1>
                     </div>
-                    <button class="btn-cast" @click="castVideo">
+                    <div class="video-meta">
+                        正在播放: <span class="text-white fw-bold">{{ currentSource?.site_name }}</span>
+                        <span v-if="currentUrl.includes('/1/')" class="ms-2 badge bg-success"
+                            style="font-size: 10px;">HD 1080P</span>
+                    </div>
+                    <button class="btn-cast" @click="castVideo" style="margin-left: auto">
                         <i class="fas fa-tv"></i> 一键投屏
                     </button>
                 </div>
 
-                <!-- 2. 中部：超大播放器 -->
-                <div class="player-box" style="position: relative;">
+                <!-- 播放器核心 -->
+                <div class="player-box">
                     <div id="dplayer" style="width: 100%; height: 100%;"></div>
                     <!-- 自动切换线路提示 -->
                     <div v-if="autoRetryMessage" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                               background: rgba(0,0,0,0.9); padding: 20px 30px; border-radius: 10px; 
-                               text-align: center; z-index: 100; border: 1px solid rgba(255,255,255,0.1);">
+                                       background: rgba(0,0,0,0.9); padding: 20px 30px; border-radius: 10px; 
+                                       text-align: center; z-index: 100; border: 1px solid rgba(255,255,255,0.1);">
                         <i class="fas fa-sync-alt fa-spin"
                             style="font-size: 24px; color: #e50914; margin-bottom: 10px;"></i>
                         <div style="color: #fff; font-weight: bold;">{{ autoRetryMessage }}</div>
@@ -3115,108 +3337,72 @@
                     </div>
                 </div>
 
-                <!-- 3. 底部：控制面板 -->
-                <div class="controls-area">
-                    <!-- 剧集简介 -->
-                    <div class="mb-4" v-if="currentSource">
-                        <div class="panel-title">剧情简介</div>
-                        <p
-                            style="color: #999; font-size: 13px; line-height: 1.7; max-height: 80px; overflow-y: auto; margin: 0;">
-                            <span v-if="loadingDetail"><i class="fas fa-spinner fa-spin"></i> 加载中...</span>
-                            <span v-else>{{ stripHtml(currentSource.vod_content) || '暂无简介信息' }}</span>
-                        </p>
+                <!-- 播放器下方简介 (移动端或隐藏侧边栏时可见) -->
+                <div class="controls-area" style="padding: 20px 30px;" v-if="!sidebarVisible">
+                    <div class="panel-title">剧情简介</div>
+                    <p style="color: #888; font-size: 14px; line-height: 1.6;">
+                        {{ stripHtml(currentSource?.vod_content) || '暂无简介' }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- 2. 右侧：侧边栏面板 -->
+            <div class="player-sidebar" :class="{ hidden: !sidebarVisible }">
+                <!-- Tab 切换 -->
+                <div class="sidebar-tabs">
+                    <div class="sidebar-tab-btn" :class="{ active: activeSidebarTab === 'episodes' }"
+                        @click="activeSidebarTab = 'episodes'">
+                        选集
                     </div>
-
-                    <!-- 线路选择 -->
-                    <div class="mb-4">
-                        <div class="panel-title">
-                            切换线路
-                            <span v-if="isTestingSources" style="font-size: 12px; color: #888; font-weight: normal;">
-                                <i class="fas fa-spinner fa-spin"></i> 正在测速...
-                            </span>
-                        </div>
-
-                        <!-- 测速类型图例 -->
-                        <div v-if="!isTestingSources && (fastSources.length > 0 || slowSources.length > 0)"
-                            style="font-size: 11px; color: #666; margin-bottom: 10px; display: flex; gap: 15px; align-items: center;">
-                            <span style="display: flex; align-items: center; gap: 4px;">
-                                <span
-                                    style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; padding: 1px 5px; border-radius: 3px; font-size: 9px;">直连</span>
-                                用户端测速（更准确）
-                            </span>
-                            <span style="display: flex; align-items: center; gap: 4px;">
-                                <span
-                                    style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; padding: 1px 5px; border-radius: 3px; font-size: 9px;">代理</span>
-                                服务器测速
-                            </span>
-                        </div>
-
-                        <!-- 快速线路列表 (< 600ms) -->
-                        <div class="source-list" v-if="fastSources.length > 0 || slowSources.length > 0">
-                            <!-- 快速线路 -->
-                            <div v-for="source in fastSources" class="source-pill"
-                                :class="{ active: currentSource?.site_key === source.site_key }"
-                                @click="switchSource(source)">
-                                <span>{{ source.site_name }}</span>
-                                <span class="latency-dot" :class="getLatencyClass(source.latency)"></span>
-                                <span style="font-size:10px; opacity:0.6;">{{source.latency}}ms</span>
-                                <span v-if="source._testType === 'direct'"
-                                    style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; padding: 1px 5px; border-radius: 3px; font-size: 9px; margin-left: 4px;">
-                                    直连
-                                </span>
-                                <span v-else
-                                    style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; padding: 1px 5px; border-radius: 3px; font-size: 9px; margin-left: 4px;">
-                                    代理
-                                </span>
-                            </div>
-                            <!-- 慢速线路分隔符 -->
-                            <div v-if="slowSources.length > 0 && fastSources.length > 0"
-                                style="width: 100%; font-size: 11px; color: #666; padding: 8px 0; border-top: 1px solid #333; margin-top: 5px;">
-                                <i class="fas fa-hourglass-half"></i> 较慢线路 ({{ slowSources.length }})
-                            </div>
-                            <!-- 慢速线路 -->
-                            <div v-for="source in slowSources" class="source-pill"
-                                :class="{ active: currentSource?.site_key === source.site_key }" style="opacity: 0.7;"
-                                @click="switchSource(source)">
-                                <span>{{ source.site_name }}</span>
-                                <span class="latency-dot" :class="getLatencyClass(source.latency)"></span>
-                                <span style="font-size:10px; opacity:0.6;">{{source.latency}}ms</span>
-                                <span v-if="source._testType === 'direct'"
-                                    style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; padding: 1px 5px; border-radius: 3px; font-size: 9px; margin-left: 4px;">
-                                    直连
-                                </span>
-                                <span v-else
-                                    style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; padding: 1px 5px; border-radius: 3px; font-size: 9px; margin-left: 4px;">
-                                    代理
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- 全部不可用提示 -->
-                        <div v-else-if="!isTestingSources && fastSources.length === 0 && slowSources.length === 0"
-                            class="text-center py-4"
-                            style="background: rgba(255,0,0,0.1); border-radius: 8px; border: 1px solid rgba(255,0,0,0.2);">
-                            <i class="fas fa-exclamation-triangle text-warning" style="font-size: 24px;"></i>
-                            <div class="mt-2" style="color: #ff6b6b;">所有采集站均不可用</div>
-                            <div class="mt-1" style="font-size: 12px; color: #888;">请稍后重试或尝试搜索其他资源</div>
-                        </div>
+                    <div class="sidebar-tab-btn" :class="{ active: activeSidebarTab === 'sources' }"
+                        @click="activeSidebarTab = 'sources'">
+                        换源
                     </div>
+                </div>
 
-                    <!-- 选集列表 (全宽网格) -->
-                    <div>
-                        <div class="panel-title">选集播放</div>
-                        <div v-if="loadingDetail" class="text-center py-5 text-muted"><i
-                                class="fas fa-spinner fa-spin"></i> 加载中...</div>
-                        <div v-else class="ep-grid">
+                <!-- 侧边栏内容区 -->
+                <div class="sidebar-content">
+                    <!-- 选集列表 -->
+                    <div v-if="activeSidebarTab === 'episodes'">
+                        <div v-if="loadingDetail" class="text-center py-5"><i class="fas fa-spinner fa-spin"></i> 加载中...
+                        </div>
+                        <div v-else class="sidebar-ep-grid">
                             <div v-for="ep in episodeList" class="ep-btn" :class="{ active: currentUrl === ep.url }"
-                                @click="play(ep.url)">
+                                @click="play(ep.url)" style="font-size: 12px; padding: 10px 5px;">
                                 {{ ep.name }}
                             </div>
                         </div>
                     </div>
-                </div>
 
+                    <!-- 线路列表 -->
+                    <div v-if="activeSidebarTab === 'sources'">
+                        <div v-if="isTestingSources" class="text-center py-5"><i class="fas fa-spinner fa-spin"></i>
+                            测速中...</div>
+                        <div v-else>
+                            <div class="panel-title mb-3" style="font-size: 14px;">推荐线路</div>
+                            <div v-for="source in [...fastSources, ...slowSources]" class="sidebar-source-item"
+                                :class="{ active: currentSource?.site_key === source.site_key }"
+                                @click="switchSource(source)">
+                                <img :src="finalPoster(currentGroup)"
+                                    onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2740%27 height=%2756%27%3E%3Crect fill=%27%23333%27 width=%2740%27 height=%2756%27/%3E%3C/svg%3E'">
+                                <div class="source-info">
+                                    <div class="source-name">{{ source.site_name }}</div>
+                                    <div class="source-latency">
+                                        <span class="latency-dot" :class="getLatencyClass(source.latency)"></span>
+                                        {{ source.latency }}ms
+                                        <span v-if="source.latency > 1000" class="text-danger ms-1">检测失败</span>
+                                    </div>
+                                </div>
+                                <span class="source-tag"
+                                    :style="{ background: source._testType === 'direct' ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #6366f1, #4f46e5)' }">
+                                    {{ source._testType === 'direct' ? '直连' : '代理' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+
         </div>
 
     </div>
@@ -3432,6 +3618,10 @@
 
                     // 恢复缺失的状态变量
                     keyword: '', loading: false, searched: false, rawList: [],
+
+                    // 播放页侧边栏状态
+                    sidebarVisible: true,        // 侧边栏是否可见 (PC默认可见)
+                    activeSidebarTab: 'episodes', // 侧边栏当前 Tab: episodes / sources
                     showDetail: false, currentGroup: null, currentSource: null,
                     episodeList: [], currentUrl: '', loadingDetail: false,
                     imageMap: {}, fallbackMap: {}, heroList: [], scrollY: 0,
@@ -4473,6 +4663,7 @@
                     this.scrollToTop();
                     // 关闭播放详情页
                     this.showDetail = false;
+                    this.sidebarVisible = true; // 重置侧边栏可见性
                     if (dp) dp.pause();
                     // 清除搜索状态
                     this.searched = false;
@@ -5288,36 +5479,36 @@
                                     dp.notice(val ? '已开启去广告模式' : '已关闭去广告模式', 2000);
                                 }));
 
-                                // -> 跳过片头片尾开关
-                                customContainer.appendChild(createToggleItem('跳过片头片尾', globalSettings.skipEnabled, (val) => {
+                                // -> 跳过片头片尾开关 (全局)
+                                customContainer.appendChild(createToggleItem('自动跳过片头片尾', globalSettings.skipEnabled, (val) => {
                                     globalSettings.skipEnabled = val;
                                     localStorage.setItem(globalSettingsKey, JSON.stringify(globalSettings));
                                     dp.notice(val ? '已开启自动跳过' : '已关闭自动跳过', 2000);
                                 }));
 
-                                // -> 删除配置
-                                customContainer.appendChild(createActionItem('删除跳过配置', '点击删除', (btn) => {
-                                    localStorage.removeItem(skipConfigKey);
-                                    skipConfig = {};
-                                    btn.innerText = '已删除';
-                                    setTimeout(() => btn.innerText = '点击删除', 2000);
-                                    dp.notice('当前集跳过配置已清除', 2000);
-                                }));
-
-                                // -> 设置片头
-                                customContainer.appendChild(createActionItem('设置片头', '设为当前', (btn) => {
+                                // -> 设置片头 (当前集)
+                                customContainer.appendChild(createActionItem('设置片头结束点', '设为当前', (btn) => {
                                     const time = dp.video.currentTime;
                                     skipConfig.intro = time;
                                     localStorage.setItem(skipConfigKey, JSON.stringify(skipConfig));
                                     dp.notice(`片头结束点已设为 ${time.toFixed(0)}秒`, 2000);
                                 }));
 
-                                // -> 设置片尾
-                                customContainer.appendChild(createActionItem('设置片尾', '设为当前', (btn) => {
+                                // -> 设置片尾 (当前集)
+                                customContainer.appendChild(createActionItem('设置片尾开始点', '设为当前', (btn) => {
                                     const time = dp.video.currentTime;
                                     skipConfig.outro = time;
                                     localStorage.setItem(skipConfigKey, JSON.stringify(skipConfig));
                                     dp.notice(`片尾开始点已设为 ${time.toFixed(0)}秒`, 2000);
+                                }));
+
+                                // -> 删除配置 (当前集)
+                                customContainer.appendChild(createActionItem('清除当前集跳过配置', '点击删除', (btn) => {
+                                    localStorage.removeItem(skipConfigKey);
+                                    skipConfig = {};
+                                    btn.innerText = '已删除';
+                                    setTimeout(() => btn.innerText = '点击删除', 2000);
+                                    dp.notice('当前集跳过配置已清除', 2000);
                                 }));
 
                                 settingOrigin.appendChild(customContainer);
