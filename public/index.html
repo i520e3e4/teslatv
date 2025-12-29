@@ -5197,44 +5197,53 @@
                             const settingBox = dplayerContainer.querySelector('.dplayer-setting-box');
                             const mask = dplayerContainer.querySelector('.dplayer-mask');
 
-                            // --- 1. 基础修复 ---
-                            if (settingBox && mask) {
-                                // 使用 MutationObserver 监控设置菜单的打开/关闭状态
-                                const observer = new MutationObserver((mutations) => {
-                                    mutations.forEach((mutation) => {
-                                        if (mutation.attributeName === 'class') {
-                                            const isOpen = settingBox.classList.contains('dplayer-setting-box-open');
-                                            mask.style.pointerEvents = isOpen ? 'none' : 'auto';
-                                        }
-                                    });
-                                });
-                                observer.observe(settingBox, { attributes: true });
+                            // --- 1. 基础修复 & 2. 高级设置功能注入 (Robust Polling) ---
+                            const injectSettings = () => {
+                                const dplayerContainer = document.getElementById('dplayer');
+                                if (!dplayerContainer) return;
 
-                                // 再次点击设置按钮时关闭设置菜单
-                                const settingIcon = dplayerContainer.querySelector('.dplayer-setting-icon');
-                                if (settingIcon) {
-                                    let wasOpenBeforeClick = false;
-                                    settingIcon.addEventListener('mousedown', () => {
-                                        wasOpenBeforeClick = settingBox.classList.contains('dplayer-setting-box-open');
+                                const settingBox = dplayerContainer.querySelector('.dplayer-setting-box');
+                                const mask = dplayerContainer.querySelector('.dplayer-mask');
+
+                                if (!settingBox) return false; // Not ready yet
+
+                                // 1. 基础修复: 菜单遮罩交互
+                                if (mask && !settingBox._hasObserver) {
+                                    const observer = new MutationObserver((mutations) => {
+                                        mutations.forEach((mutation) => {
+                                            if (mutation.attributeName === 'class') {
+                                                const isOpen = settingBox.classList.contains('dplayer-setting-box-open');
+                                                mask.style.pointerEvents = isOpen ? 'none' : 'auto';
+                                            }
+                                        });
                                     });
-                                    settingIcon.addEventListener('click', (e) => {
-                                        if (wasOpenBeforeClick) {
-                                            e.stopPropagation();
-                                            settingBox.classList.remove('dplayer-setting-box-open');
-                                            const settingSpeed = settingBox.querySelector('.dplayer-setting-speed');
-                                            if (settingSpeed) settingSpeed.classList.add('dplayer-setting-box-hide');
-                                            const settingOrigin = settingBox.querySelector('.dplayer-setting-origin');
-                                            if (settingOrigin) settingOrigin.classList.remove('dplayer-setting-box-hide');
-                                        }
-                                        wasOpenBeforeClick = false;
-                                    });
+                                    observer.observe(settingBox, { attributes: true });
+                                    settingBox._hasObserver = true;
+
+                                    const settingIcon = dplayerContainer.querySelector('.dplayer-setting-icon');
+                                    if (settingIcon) {
+                                        let wasOpenBeforeClick = false;
+                                        settingIcon.addEventListener('mousedown', () => {
+                                            wasOpenBeforeClick = settingBox.classList.contains('dplayer-setting-box-open');
+                                        });
+                                        settingIcon.addEventListener('click', (e) => {
+                                            if (wasOpenBeforeClick) {
+                                                e.stopPropagation();
+                                                settingBox.classList.remove('dplayer-setting-box-open');
+                                                const settingSpeed = settingBox.querySelector('.dplayer-setting-speed');
+                                                if (settingSpeed) settingSpeed.classList.add('dplayer-setting-box-hide');
+                                                const settingOrigin = settingBox.querySelector('.dplayer-setting-origin');
+                                                if (settingOrigin) settingOrigin.classList.remove('dplayer-setting-box-hide');
+                                            }
+                                            wasOpenBeforeClick = false;
+                                        });
+                                    }
                                 }
-                            }
 
-                            // --- 2. 高级设置功能注入 ---
-                            if (settingBox) {
+                                // 2. 高级设置注入
                                 const settingOrigin = settingBox.querySelector('.dplayer-setting-origin');
-                                if (settingOrigin) {
+                                // Ensure we don't inject twice
+                                if (settingOrigin && !settingOrigin.querySelector('.dplayer-custom-settings')) {
                                     // 2.1 存储 Key 生成
                                     const normalizeName = (str) => str ? str.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_') : 'unknown';
                                     const vodName = normalizeName(this.currentGroup?.name);
@@ -5248,7 +5257,7 @@
 
                                     // 2.2 读取配置
                                     let globalSettings = JSON.parse(localStorage.getItem(globalSettingsKey) || '{"adBlock": true, "skipEnabled": false}');
-                                    let skipConfig = JSON.parse(localStorage.getItem(skipConfigKey) || '{}'); // { intro: null, outro: null }
+                                    let skipConfig = JSON.parse(localStorage.getItem(skipConfigKey) || '{}');
 
                                     // 2.3 构建 UI
                                     const customContainer = document.createElement('div');
@@ -5322,30 +5331,20 @@
 
                                     settingOrigin.appendChild(customContainer);
 
-                                    // 2.4 监听播放时间 (自动跳过逻辑)
+                                    // 2.4 监听播放时间 (自动跳过)
                                     let hasSkippedIntro = false;
                                     let hasSkippedOutro = false;
 
                                     dp.on('timeupdate', () => {
                                         if (!globalSettings.skipEnabled || !dp.video || dp.video.paused) return;
-
                                         const time = dp.video.currentTime;
                                         const duration = dp.video.duration;
 
-                                        // 跳过片头
+                                        // 跳过片头 (必须是刚开始播放且在片头范围内)
                                         if (skipConfig.intro && time < skipConfig.intro && !hasSkippedIntro) {
-                                            // 只有在接近 0 开始播放时才跳过吗？或者任何时候？
-                                            // 逻辑：如果当前时间 < intro，说明在片头内。
-                                            // 为防止用户手动拖回片头无法观看，我们只在"也是刚开始播放"或者"自然播放进入"时跳过？
-                                            // 简化逻辑：如果在片头范围内，直接seek到intro结束点。
-                                            // 但为了允许用户看片头，我们加一个限制：只有刚加载视频的前几秒，或者刚seek到这里？
-                                            // 最好的体验：如果不加限制，用户想看片头都看不了。
-                                            // 改进：只在 time < 5秒 且 intro > time 时跳过？
-                                            // 或者：一旦跳过一次，标记 hasSkippedIntro。如果用户手动拖回去，hasSkippedIntro已经为true，就不跳了。
-                                            // 视频切换/重新加载时 hasSkippedIntro 重置。
-
-                                            // 修正：如果刚开始播放 (time < 2) 且有 intro，直接跳。
-                                            if (time < Math.min(skipConfig.intro, 10)) {
+                                            // 只有时间小于5秒或刚过了intro(防止无限循环)
+                                            // 简单处理: 在 intro 范围内就 seek 到 intro
+                                            if (time < Math.min(skipConfig.intro, 60)) {
                                                 dp.seek(skipConfig.intro);
                                                 dp.notice('已为您跳过片头', 2000);
                                                 hasSkippedIntro = true;
@@ -5353,542 +5352,531 @@
                                         }
 
                                         // 跳过片尾
-                                        if (skipConfig.outro && time > skipConfig.outro && !hasSkippedOutro && (duration - time) < 600) {
-                                            // (duration - time) < 600 确保不会因为误设置了一个很小的值导致刚开始就跳过
-                                            // 只有在总时长范围内合理时才跳
-                                            dp.notice('已为您跳过片尾', 2000);
-                                            hasSkippedOutro = true;
-                                            // 触发结束 -> 自动下一集
-                                            // dp.seek(duration); // 直接结束
-                                            // 或者直接调用切换下一集逻辑？
-                                            // dp.seek(duration - 0.5); 
-                                            // 简单点：
-                                            dp.seek(duration);
+                                        if (skipConfig.outro && time > skipConfig.outro && !hasSkippedOutro) {
+                                            if ((duration - time) < 600) { // 确保是合理的片尾
+                                                dp.notice('已为您跳过片尾', 2000);
+                                                hasSkippedOutro = true;
+                                                dp.seek(duration);
+                                            }
                                         }
                                     });
 
-                                    // 切换视频时重置标记
                                     dp.on('canplay', () => {
                                         hasSkippedIntro = false;
                                         hasSkippedOutro = false;
-                                        // 重新读取配置 (也许换集了)
-                                        // ... 这里简化处理，假设 play() 会重新执行整个逻辑
-                                        // 但如果是 switchVideo，这个 timeout 块可能不会重新执行！
-                                        // 这是一个潜在的问题。 play() 方法确实会重新创建 dp 吗？
-                                        // 检查上面的代码： if (!dp) { ... new DPlayer ... setTimeout ... } else { dp.switchVideo ... }
-                                        // 所以，如果复用 dp，这段注入逻辑只会执行一次！
-                                        // ！！这意味着 skipConfig 在切换视频时不会更新！
-                                        // 必须把 skipConfig 的读取逻辑放在 timeupdate 里或者 switchVideo 里。
-
-                                        // 修正方案：
-                                        // 将 updateConfig 逻辑挂载到 dp 实例上，或者在 switchVideo 地方更新。
-                                        // 为了简单，我们在 timeupdate 里动态读取当前集的 key？不，性能太差。
-                                        // 我们可以监听 dp.on('switch') 或类似事件？
-                                        // 最好的办法：在 else { dp.switchVideo } 那里也更新一下配置。
-                                        // 或者，我们定义一个全局函数/变量来更新配置。
                                     });
 
-                                    // 挂载更新函数到 dp 实例，以便 switchVideo 时调用
-                                    // 挂载更新配置函数 (供 switchVideo 调用)
+                                    // 2.5 挂载 updateSkipConfig
                                     dp.updateSkipConfig = (newUrl) => {
-                                        const normalizeName = (str) => str ? str.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_') : 'unknown';
-                                        const vodName = normalizeName(this.currentGroup?.name);
+                                        // Re-read name/key logic is needed here or closure capture
+                                        // For simplicity, we just reuse the captured context if valid, 
+                                        // but warning: this closure might be stale if play() is called again.
+                                        // Actually, play() recreates everything, so this is fine.
+                                        // BUT we need to recalculate key based on newUrl if provided.
 
-                                        let epName = 'film';
-                                        // 如果有 episodes，尝试找到对应集数名称
+                                        // ... duplicated logic from above for key gen ...
+                                        const normalizeName = (str) => str ? str.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_') : 'unknown';
+                                        const currentVodName = normalizeName(this.currentGroup?.name);
+                                        let currentEpName = 'film';
                                         if (this.episodeList && this.episodeList.length > 1) {
                                             const targetUrl = newUrl || (dp.video ? dp.video.src : '') || this.currentUrl;
                                             const curEp = this.episodeList.find(ep => ep.url === targetUrl);
-                                            if (curEp) epName = normalizeName(curEp.name);
+                                            if (curEp) currentEpName = normalizeName(curEp.name);
                                         }
 
-                                        // 更新闭包内的变量
-                                        skipConfigKey = `donggua_skip_${vodName}_${epName}`;
+                                        // Update closures
+                                        skipConfigKey = `donggua_skip_${currentVodName}_${currentEpName}`;
                                         globalSettings = JSON.parse(localStorage.getItem(globalSettingsKey) || '{"adBlock": true, "skipEnabled": false}');
                                         skipConfig = JSON.parse(localStorage.getItem(skipConfigKey) || '{}');
 
-                                        console.log('[AdvancedSettings] Config updated:', skipConfigKey, skipConfig);
-                                        dp.notice && dp.notice(`已加载配置: ${skipConfig.intro ? '有片头' : '无片头'} / ${skipConfig.outro ? '有片尾' : '无片尾'}`, 2000);
+                                        console.log('[AdvancedSettings] Config updated for:', skipConfigKey);
                                     };
-                                    // 我们把 skipConfigKey 的计算逻辑提取出来，每次需要用的时候实时计算。
-                                    // 然后实时读取 localStorage。
-                                    // 这样最稳健，支持切换视频。
                                 }
-                            }
-                        }, 500);
 
-                        // 添加全屏横屏功能（手机端）
+                                return true; // Success
+                            };
 
-                        // 添加全屏横屏功能（手机端）
-                        dp.on('fullscreen', () => {
-                            if (screen.orientation && screen.orientation.lock) {
-                                screen.orientation.lock('landscape').catch(() => { });
-                            }
-                        });
+                            // Polling for 5 seconds
+                            let checkCount = 0;
+                            const checkTimer = setInterval(() => {
+                                checkCount++;
+                                if (injectSettings() || checkCount > 25) { // 200ms * 25 = 5s
+                                    clearInterval(checkTimer);
+                                }
+                            }, 200);
 
-                        dp.on('fullscreen_cancel', () => {
-                            if (screen.orientation && screen.orientation.unlock) {
-                                screen.orientation.unlock();
-                            }
-                        });
+                            // 添加全屏横屏功能（手机端）
 
-                        // ========== 📱 手机端双击快进/快退功能 ==========
-                        const container = document.getElementById('dplayer');
-                        let lastTap = 0;
-                        let tapTimeout = null;
-                        let controllerHideTimer = null;
-                        const SEEK_SECONDS = 10;  // 快进/快退秒数
+                            // 添加全屏横屏功能（手机端）
+                            dp.on('fullscreen', () => {
+                                if (screen.orientation && screen.orientation.lock) {
+                                    screen.orientation.lock('landscape').catch(() => { });
+                                }
+                            });
 
-                        // 创建提示元素
-                        const seekHintLeft = document.createElement('div');
-                        seekHintLeft.className = 'dplayer-seek-hint left';
-                        seekHintLeft.innerHTML = '<i class="fas fa-backward"></i><span>-10秒</span>';
-                        container.appendChild(seekHintLeft);
+                            dp.on('fullscreen_cancel', () => {
+                                if (screen.orientation && screen.orientation.unlock) {
+                                    screen.orientation.unlock();
+                                }
+                            });
 
-                        const seekHintRight = document.createElement('div');
-                        seekHintRight.className = 'dplayer-seek-hint right';
-                        seekHintRight.innerHTML = '<i class="fas fa-forward"></i><span>+10秒</span>';
-                        container.appendChild(seekHintRight);
+                            // ========== 📱 手机端双击快进/快退功能 ==========
+                            const container = document.getElementById('dplayer');
+                            let lastTap = 0;
+                            let tapTimeout = null;
+                            let controllerHideTimer = null;
+                            const SEEK_SECONDS = 10;  // 快进/快退秒数
 
-                        // 倍速指示器
-                        const speedIndicator = document.createElement('div');
-                        speedIndicator.className = 'dplayer-speed-indicator';
-                        container.appendChild(speedIndicator);
+                            // 创建提示元素
+                            const seekHintLeft = document.createElement('div');
+                            seekHintLeft.className = 'dplayer-seek-hint left';
+                            seekHintLeft.innerHTML = '<i class="fas fa-backward"></i><span>-10秒</span>';
+                            container.appendChild(seekHintLeft);
 
-                        // 🖥️ 电脑端中央播放/暂停按钮
-                        const isDesktop = window.innerWidth > 768;
-                        let desktopPlayOverlay = null;
+                            const seekHintRight = document.createElement('div');
+                            seekHintRight.className = 'dplayer-seek-hint right';
+                            seekHintRight.innerHTML = '<i class="fas fa-forward"></i><span>+10秒</span>';
+                            container.appendChild(seekHintRight);
 
-                        if (isDesktop) {
-                            desktopPlayOverlay = document.createElement('div');
-                            desktopPlayOverlay.className = 'desktop-play-overlay';
-                            desktopPlayOverlay.innerHTML = '<i class="fas fa-play"></i>';
-                            container.appendChild(desktopPlayOverlay);
+                            // 倍速指示器
+                            const speedIndicator = document.createElement('div');
+                            speedIndicator.className = 'dplayer-speed-indicator';
+                            container.appendChild(speedIndicator);
 
-                            // 更新桌面按钮状态
-                            const updateDesktopOverlay = () => {
-                                if (dp.video.paused) {
+                            // 🖥️ 电脑端中央播放/暂停按钮
+                            const isDesktop = window.innerWidth > 768;
+                            let desktopPlayOverlay = null;
+
+                            if (isDesktop) {
+                                desktopPlayOverlay = document.createElement('div');
+                                desktopPlayOverlay.className = 'desktop-play-overlay';
+                                desktopPlayOverlay.innerHTML = '<i class="fas fa-play"></i>';
+                                container.appendChild(desktopPlayOverlay);
+
+                                // 更新桌面按钮状态
+                                const updateDesktopOverlay = () => {
+                                    if (dp.video.paused) {
+                                        desktopPlayOverlay.innerHTML = '<i class="fas fa-play"></i>';
+                                        desktopPlayOverlay.classList.remove('pause-state');
+                                        desktopPlayOverlay.classList.add('show');
+                                    } else {
+                                        desktopPlayOverlay.innerHTML = '<i class="fas fa-pause"></i>';
+                                        desktopPlayOverlay.classList.add('pause-state');
+                                        // 播放时短暂显示后隐藏
+                                        desktopPlayOverlay.classList.add('show');
+                                        setTimeout(() => {
+                                            if (!dp.video.paused) {
+                                                desktopPlayOverlay.classList.remove('show');
+                                            }
+                                        }, 800);
+                                    }
+                                };
+
+                                // 监听播放/暂停事件
+                                dp.on('pause', () => {
                                     desktopPlayOverlay.innerHTML = '<i class="fas fa-play"></i>';
                                     desktopPlayOverlay.classList.remove('pause-state');
                                     desktopPlayOverlay.classList.add('show');
-                                } else {
+                                });
+
+                                dp.on('play', () => {
                                     desktopPlayOverlay.innerHTML = '<i class="fas fa-pause"></i>';
                                     desktopPlayOverlay.classList.add('pause-state');
-                                    // 播放时短暂显示后隐藏
                                     desktopPlayOverlay.classList.add('show');
+                                    // 播放后短暂显示然后隐藏
                                     setTimeout(() => {
                                         if (!dp.video.paused) {
                                             desktopPlayOverlay.classList.remove('show');
                                         }
                                     }, 800);
-                                }
+                                });
+
+                                // 点击按钮切换播放/暂停
+                                desktopPlayOverlay.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    dp.toggle();
+                                });
+
+                                // 点击视频区域也显示按钮
+                                container.addEventListener('click', (e) => {
+                                    // 忽略控制栏和设置菜单
+                                    if (e.target.closest('.dplayer-controller') ||
+                                        e.target.closest('.dplayer-setting-box') ||
+                                        e.target.closest('.desktop-play-overlay')) {
+                                        return;
+                                    }
+
+                                    // 如果按钮隐藏，先显示
+                                    if (!desktopPlayOverlay.classList.contains('show')) {
+                                        updateDesktopOverlay();
+                                    }
+                                });
+                            }
+
+                            // 📱 手机端中央交互按钮
+                            const mobilePlayOverlay = document.createElement('div');
+                            mobilePlayOverlay.className = 'mobile-play-overlay';
+                            mobilePlayOverlay.innerHTML = '<i class="fas fa-play"></i>';
+                            container.appendChild(mobilePlayOverlay);
+
+                            // 强力移除 DPlayer 原生移动端图标
+                            const removeNativeIcons = () => {
+                                const nativePlay = container.querySelector('.dplayer-mobile-play');
+                                if (nativePlay) nativePlay.style.display = 'none';
+
+                                const nativeBezels = container.querySelectorAll('.dplayer-bezel-icon');
+                                nativeBezels.forEach(el => el.style.display = 'none');
                             };
 
-                            // 监听播放/暂停事件
-                            dp.on('pause', () => {
-                                desktopPlayOverlay.innerHTML = '<i class="fas fa-play"></i>';
-                                desktopPlayOverlay.classList.remove('pause-state');
-                                desktopPlayOverlay.classList.add('show');
-                            });
+                            // 初始移除
+                            removeNativeIcons();
 
+                            // 监听 DOM 变化持续移除 (防止 DPlayer 重新创建)
+                            const observer = new MutationObserver((mutations) => {
+                                removeNativeIcons();
+                            });
+                            observer.observe(container, { childList: true, subtree: true });
+
+                            // 更新按钮状态函数
+                            const updateOverlayState = (overlay) => {
+                                if (dp.video.paused) {
+                                    overlay.innerHTML = '<i class="fas fa-play"></i>';
+                                    overlay.classList.remove('pause-state');
+                                } else {
+                                    overlay.innerHTML = '<i class="fas fa-pause"></i>';
+                                    overlay.classList.add('pause-state'); // 调整图标居中
+                                    overlay.classList.add('show');
+                                }
+                                overlay.classList.add('show');
+                            };
+
+                            // 监听播放状态变化来自动更新 UI (可选，但为了确保一致性)
                             dp.on('play', () => {
-                                desktopPlayOverlay.innerHTML = '<i class="fas fa-pause"></i>';
-                                desktopPlayOverlay.classList.add('pause-state');
-                                desktopPlayOverlay.classList.add('show');
-                                // 播放后短暂显示然后隐藏
-                                setTimeout(() => {
-                                    if (!dp.video.paused) {
-                                        desktopPlayOverlay.classList.remove('show');
-                                    }
-                                }, 800);
+                                if (mobilePlayOverlay.classList.contains('show')) {
+                                    mobilePlayOverlay.innerHTML = '<i class="fas fa-pause"></i>';
+                                    mobilePlayOverlay.classList.add('pause-state');
+                                }
                             });
 
-                            // 点击按钮切换播放/暂停
-                            desktopPlayOverlay.addEventListener('click', (e) => {
-                                e.preventDefault();
+                            dp.on('pause', () => {
+                                if (mobilePlayOverlay.classList.contains('show')) {
+                                    mobilePlayOverlay.innerHTML = '<i class="fas fa-play"></i>';
+                                    mobilePlayOverlay.classList.remove('pause-state');
+                                }
+                            });
+
+                            // 点击中央按钮事件
+                            mobilePlayOverlay.addEventListener('touchend', (e) => {
+                                e.preventDefault(); // 阻止冒泡防止触发背景点击
                                 e.stopPropagation();
                                 dp.toggle();
+                                // 点击后更新状态
+                                setTimeout(() => updateOverlayState(mobilePlayOverlay), 50);
+                                // 交互后重置隐藏计时器
+                                if (controllerHideTimer) clearTimeout(controllerHideTimer);
+                                controllerHideTimer = setTimeout(() => {
+                                    const controller = container.querySelector('.dplayer-controller');
+                                    if (controller) controller.classList.remove('dplayer-controller-show');
+                                    mobilePlayOverlay.classList.remove('show');
+                                    container.classList.add('dplayer-hide-controller');
+                                }, 3000);
                             });
 
-                            // 点击视频区域也显示按钮
-                            container.addEventListener('click', (e) => {
-                                // 忽略控制栏和设置菜单
+                            // 双击检测
+                            // 双击检测
+                            container.addEventListener('touchend', (e) => {
+                                // 忽略控制栏区域和自定义按钮的点击
+                                // 忽略控制栏区域、自定义按钮以及 DPlayer 遮罩的点击
                                 if (e.target.closest('.dplayer-controller') ||
                                     e.target.closest('.dplayer-setting-box') ||
-                                    e.target.closest('.desktop-play-overlay')) {
+                                    e.target.closest('.mobile-play-overlay') ||
+                                    e.target.closest('.dplayer-mask')) {
                                     return;
                                 }
 
-                                // 如果按钮隐藏，先显示
-                                if (!desktopPlayOverlay.classList.contains('show')) {
-                                    updateDesktopOverlay();
+                                // 阻止 DPlayer 原生点击事件，防止冲突
+                                if (e.cancelable) {
+                                    e.preventDefault();
                                 }
-                            });
-                        }
 
-                        // 📱 手机端中央交互按钮
-                        const mobilePlayOverlay = document.createElement('div');
-                        mobilePlayOverlay.className = 'mobile-play-overlay';
-                        mobilePlayOverlay.innerHTML = '<i class="fas fa-play"></i>';
-                        container.appendChild(mobilePlayOverlay);
+                                const now = Date.now();
+                                const rect = container.getBoundingClientRect();
+                                const x = e.changedTouches[0].clientX - rect.left;
+                                const width = rect.width;
+                                const isLeftSide = x < width * 0.35;   // 左侧 35%
+                                const isRightSide = x > width * 0.65; // 右侧 35%
+                                const isCenter = !isLeftSide && !isRightSide;  // 中间 30%
 
-                        // 强力移除 DPlayer 原生移动端图标
-                        const removeNativeIcons = () => {
-                            const nativePlay = container.querySelector('.dplayer-mobile-play');
-                            if (nativePlay) nativePlay.style.display = 'none';
+                                if (now - lastTap < 300) {
+                                    // 双击检测成功
+                                    clearTimeout(tapTimeout);
 
-                            const nativeBezels = container.querySelectorAll('.dplayer-bezel-icon');
-                            nativeBezels.forEach(el => el.style.display = 'none');
-                        };
-
-                        // 初始移除
-                        removeNativeIcons();
-
-                        // 监听 DOM 变化持续移除 (防止 DPlayer 重新创建)
-                        const observer = new MutationObserver((mutations) => {
-                            removeNativeIcons();
-                        });
-                        observer.observe(container, { childList: true, subtree: true });
-
-                        // 更新按钮状态函数
-                        const updateOverlayState = (overlay) => {
-                            if (dp.video.paused) {
-                                overlay.innerHTML = '<i class="fas fa-play"></i>';
-                                overlay.classList.remove('pause-state');
-                            } else {
-                                overlay.innerHTML = '<i class="fas fa-pause"></i>';
-                                overlay.classList.add('pause-state'); // 调整图标居中
-                                overlay.classList.add('show');
-                            }
-                            overlay.classList.add('show');
-                        };
-
-                        // 监听播放状态变化来自动更新 UI (可选，但为了确保一致性)
-                        dp.on('play', () => {
-                            if (mobilePlayOverlay.classList.contains('show')) {
-                                mobilePlayOverlay.innerHTML = '<i class="fas fa-pause"></i>';
-                                mobilePlayOverlay.classList.add('pause-state');
-                            }
-                        });
-
-                        dp.on('pause', () => {
-                            if (mobilePlayOverlay.classList.contains('show')) {
-                                mobilePlayOverlay.innerHTML = '<i class="fas fa-play"></i>';
-                                mobilePlayOverlay.classList.remove('pause-state');
-                            }
-                        });
-
-                        // 点击中央按钮事件
-                        mobilePlayOverlay.addEventListener('touchend', (e) => {
-                            e.preventDefault(); // 阻止冒泡防止触发背景点击
-                            e.stopPropagation();
-                            dp.toggle();
-                            // 点击后更新状态
-                            setTimeout(() => updateOverlayState(mobilePlayOverlay), 50);
-                            // 交互后重置隐藏计时器
-                            if (controllerHideTimer) clearTimeout(controllerHideTimer);
-                            controllerHideTimer = setTimeout(() => {
-                                const controller = container.querySelector('.dplayer-controller');
-                                if (controller) controller.classList.remove('dplayer-controller-show');
-                                mobilePlayOverlay.classList.remove('show');
-                                container.classList.add('dplayer-hide-controller');
-                            }, 3000);
-                        });
-
-                        // 双击检测
-                        // 双击检测
-                        container.addEventListener('touchend', (e) => {
-                            // 忽略控制栏区域和自定义按钮的点击
-                            // 忽略控制栏区域、自定义按钮以及 DPlayer 遮罩的点击
-                            if (e.target.closest('.dplayer-controller') ||
-                                e.target.closest('.dplayer-setting-box') ||
-                                e.target.closest('.mobile-play-overlay') ||
-                                e.target.closest('.dplayer-mask')) {
-                                return;
-                            }
-
-                            // 阻止 DPlayer 原生点击事件，防止冲突
-                            if (e.cancelable) {
-                                e.preventDefault();
-                            }
-
-                            const now = Date.now();
-                            const rect = container.getBoundingClientRect();
-                            const x = e.changedTouches[0].clientX - rect.left;
-                            const width = rect.width;
-                            const isLeftSide = x < width * 0.35;   // 左侧 35%
-                            const isRightSide = x > width * 0.65; // 右侧 35%
-                            const isCenter = !isLeftSide && !isRightSide;  // 中间 30%
-
-                            if (now - lastTap < 300) {
-                                // 双击检测成功
-                                clearTimeout(tapTimeout);
-
-                                if (isLeftSide && dp.video) {
-                                    // 左侧双击 - 快退
-                                    const newTime = Math.max(0, dp.video.currentTime - SEEK_SECONDS);
-                                    dp.seek(newTime);
-                                    seekHintLeft.classList.add('show');
-                                    setTimeout(() => seekHintLeft.classList.remove('show'), 600);
-                                } else if (isRightSide && dp.video) {
-                                    // 右侧双击 - 快进
-                                    const newTime = Math.min(dp.video.duration || 0, dp.video.currentTime + SEEK_SECONDS);
-                                    dp.seek(newTime);
-                                    seekHintRight.classList.add('show');
-                                    setTimeout(() => seekHintRight.classList.remove('show'), 600);
-                                } else if (isCenter) {
-                                    // 中间双击 - 暂停/播放
-                                    dp.toggle();
-                                }
-                            } else {
-                                // 第一次点击，等待检测双击
-                                tapTimeout = setTimeout(() => {
-                                    // 单击 - 切换控制栏显示/隐藏
-                                    const controller = container.querySelector('.dplayer-controller');
-                                    const overlay = container.querySelector('.mobile-play-overlay');
-
-                                    if (controller) {
-                                        // 检查当前是否可见 (检查 opacity)
-                                        const isVisible = window.getComputedStyle(controller).opacity !== '0';
-
-                                        if (isVisible) {
-                                            // 当前可见 -> 隐藏
-                                            controller.classList.remove('dplayer-controller-show');
-                                            if (overlay) overlay.classList.remove('show');
-
-                                            container.classList.add('dplayer-hide-controller'); // 强制添加隐藏类
-                                            if (controllerHideTimer) {
-                                                clearTimeout(controllerHideTimer);
-                                                controllerHideTimer = null;
-                                            }
-                                        } else {
-                                            // 当前隐藏 -> 显示
-                                            if (controllerHideTimer) clearTimeout(controllerHideTimer);
-                                            controller.classList.add('dplayer-controller-show');
-                                            if (overlay) updateOverlayState(overlay); // 更新并显示
-
-                                            container.classList.remove('dplayer-hide-controller'); // 移除隐藏类
-
-                                            // 4秒后自动隐藏
-                                            controllerHideTimer = setTimeout(() => {
-                                                controller.classList.remove('dplayer-controller-show');
-                                                if (overlay) overlay.classList.remove('show');
-                                                container.classList.add('dplayer-hide-controller');
-                                                controllerHideTimer = null;
-                                            }, 4000);
-                                        }
-                                    }
-                                }, 300);
-                            }
-                            lastTap = now;
-                        });
-
-
-
-                        // 倍速变化时显示指示器
-                        dp.on('ratechange', () => {
-                            const rate = dp.video.playbackRate;
-                            speedIndicator.textContent = `${rate}x`;
-                            speedIndicator.classList.add('show');
-                            clearTimeout(speedIndicator._hideTimer);
-                            speedIndicator._hideTimer = setTimeout(() => {
-                                speedIndicator.classList.remove('show');
-                            }, 1500);
-                        });
-
-                        setupErrorHandling();
-
-                        // ========== 🕐 播放进度记忆功能 (外部实现) ==========
-                        // 标准化集数名称，确保不同源使用相同的 Key
-                        const normalizeEpisodeName = (name) => {
-                            if (!name) return '正片';
-                            // 移除前导零: 第01集 -> 第1集, 第001集 -> 第1集
-                            let normalized = name.replace(/第0*(\d+)集/g, '第$1集');
-                            // 也处理纯数字: 01 -> 1
-                            normalized = normalized.replace(/^0+(\d)/, '$1');
-                            return normalized || '正片';
-                        };
-
-                        // 智能 Key 生成（使用 this.currentUrl 动态获取当前集数）
-                        // - 电影（只有1集）：忽略集数名称（正片/HD/HD中字等），只用电影名
-                        // - 剧集（多集）：使用电影名 + 标准化集数
-                        const getProgressKey = () => {
-                            const vodName = this.currentGroup?.name || 'unknown';
-
-                            // 如果只有1集（电影），不加集数后缀，这样 正片/HD/HD中字 都共享同一个进度
-                            if (this.episodeList && this.episodeList.length === 1) {
-                                const key = `donggua_progress_${vodName}`.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
-                                return key.substring(0, 80);
-                            }
-
-                            // 多集（剧集），使用电影名 + 当前播放集数（动态获取！）
-                            let episodeName = '正片';
-                            if (this.episodeList && this.episodeList.length > 0) {
-                                const currentEp = this.episodeList.find(ep => ep.url === this.currentUrl);
-                                if (currentEp) {
-                                    episodeName = normalizeEpisodeName(currentEp.name);
-                                }
-                            }
-                            const combined = `${vodName}_${episodeName}`.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
-                            return 'donggua_progress_' + combined.substring(0, 80);
-                        };
-
-                        // 注意：progressKey 现在是动态计算的，每次调用 getProgressKey() 获取
-                        console.log('[进度记忆] 初始 Key:', getProgressKey());
-
-                        // 恢复播放进度
-                        let progressRestored = false;
-                        dp.on('canplay', () => {
-                            if (progressRestored) return;
-
-                            try {
-                                const currentKey = getProgressKey();
-                                const saved = localStorage.getItem(currentKey);
-                                console.log('[进度记忆] canplay 触发, Key:', currentKey);
-                                console.log('[进度记忆] 存储数据:', saved);
-                                console.log('[进度记忆] 视频时长:', dp.video.duration);
-                                console.log('[进度记忆] 当前时间:', dp.video.currentTime);
-                                console.log('[进度记忆] 是否可seek:', dp.video.seekable.length > 0 ? `是 (${dp.video.seekable.start(0)}-${dp.video.seekable.end(0)})` : '否');
-
-                                if (saved) {
-                                    const savedData = JSON.parse(saved);
-                                    const savedTime = savedData.time;
-                                    const savedDate = new Date(savedData.date);
-                                    const now = new Date();
-                                    const daysDiff = (now - savedDate) / (1000 * 60 * 60 * 24);
-
-                                    console.log('[进度记忆] 保存时间:', savedTime, '秒');
-                                    console.log('[进度记忆] 保存日期:', savedData.date, `(${daysDiff.toFixed(1)}天前)`);
-
-                                    // 只恢复30天内的进度，且进度在有效范围内
-                                    const isTimeOK = daysDiff < 30;
-                                    const isMinOK = savedTime > 60;  // 至少看过1分钟
-                                    const isMaxOK = dp.video.duration && savedTime < dp.video.duration - 120;  // 距离结尾>2分钟
-
-                                    console.log('[进度记忆] 检查: 30天内=' + isTimeOK + ', >1分钟=' + isMinOK + ', <结尾2分钟=' + isMaxOK);
-
-                                    if (isTimeOK && isMinOK && isMaxOK) {
-                                        console.log('[进度记忆] ✅ 准备跳转到:', savedTime);
-
-                                        // 记录跳转前的时间
-                                        const beforeSeek = dp.video.currentTime;
-
-                                        dp.seek(savedTime);
-
-                                        // 延迟检查跳转是否成功
-                                        setTimeout(() => {
-                                            const afterSeek = dp.video.currentTime;
-                                            console.log('[进度记忆] 跳转结果: 之前=' + beforeSeek.toFixed(1) + ', 目标=' + savedTime + ', 之后=' + afterSeek.toFixed(1));
-
-                                            if (Math.abs(afterSeek - savedTime) < 10) {
-                                                console.log('[进度记忆] ✅ 跳转成功!');
-                                            } else {
-                                                console.log('[进度记忆] ⚠️ 跳转可能失败，视频源可能不支持精确跳转');
-                                            }
-                                        }, 1000);
-
-                                        dp.notice(`▶ 已恢复上次观看位置 ${Math.floor(savedTime / 60)}:${String(Math.floor(savedTime % 60)).padStart(2, '0')}`, 3000);
-                                    } else {
-                                        console.log('[进度记忆] ❌ 条件不满足，跳过恢复');
+                                    if (isLeftSide && dp.video) {
+                                        // 左侧双击 - 快退
+                                        const newTime = Math.max(0, dp.video.currentTime - SEEK_SECONDS);
+                                        dp.seek(newTime);
+                                        seekHintLeft.classList.add('show');
+                                        setTimeout(() => seekHintLeft.classList.remove('show'), 600);
+                                    } else if (isRightSide && dp.video) {
+                                        // 右侧双击 - 快进
+                                        const newTime = Math.min(dp.video.duration || 0, dp.video.currentTime + SEEK_SECONDS);
+                                        dp.seek(newTime);
+                                        seekHintRight.classList.add('show');
+                                        setTimeout(() => seekHintRight.classList.remove('show'), 600);
+                                    } else if (isCenter) {
+                                        // 中间双击 - 暂停/播放
+                                        dp.toggle();
                                     }
                                 } else {
-                                    console.log('[进度记忆] 无保存记录');
+                                    // 第一次点击，等待检测双击
+                                    tapTimeout = setTimeout(() => {
+                                        // 单击 - 切换控制栏显示/隐藏
+                                        const controller = container.querySelector('.dplayer-controller');
+                                        const overlay = container.querySelector('.mobile-play-overlay');
+
+                                        if (controller) {
+                                            // 检查当前是否可见 (检查 opacity)
+                                            const isVisible = window.getComputedStyle(controller).opacity !== '0';
+
+                                            if (isVisible) {
+                                                // 当前可见 -> 隐藏
+                                                controller.classList.remove('dplayer-controller-show');
+                                                if (overlay) overlay.classList.remove('show');
+
+                                                container.classList.add('dplayer-hide-controller'); // 强制添加隐藏类
+                                                if (controllerHideTimer) {
+                                                    clearTimeout(controllerHideTimer);
+                                                    controllerHideTimer = null;
+                                                }
+                                            } else {
+                                                // 当前隐藏 -> 显示
+                                                if (controllerHideTimer) clearTimeout(controllerHideTimer);
+                                                controller.classList.add('dplayer-controller-show');
+                                                if (overlay) updateOverlayState(overlay); // 更新并显示
+
+                                                container.classList.remove('dplayer-hide-controller'); // 移除隐藏类
+
+                                                // 4秒后自动隐藏
+                                                controllerHideTimer = setTimeout(() => {
+                                                    controller.classList.remove('dplayer-controller-show');
+                                                    if (overlay) overlay.classList.remove('show');
+                                                    container.classList.add('dplayer-hide-controller');
+                                                    controllerHideTimer = null;
+                                                }, 4000);
+                                            }
+                                        }
+                                    }, 300);
                                 }
-                            } catch (e) {
-                                console.log('[进度记忆] 恢复失败:', e);
-                            }
-                            progressRestored = true;
-                        });
+                                lastTap = now;
+                            });
 
-                        // 进度保存逻辑：
-                        // - 只有当前位置 > 1分钟 才保存（防止从头看的资源覆盖进度）
-                        // - 允许进度倒退（用户可能重新开始看）
-                        // - 距离结尾 < 2分钟 视为完播，清除进度
-                        const saveProgress = (currentTime) => {
-                            const duration = dp.video?.duration || 0;
 
-                            // 获取电影信息用于观看历史
-                            const movieName = this.currentGroup?.name || '';
-                            const poster = this.currentGroup?.pic || '';
-                            // 使用 this.currentUrl 获取当前正在播放的集数（而不是闭包中固定的 url）
-                            const currentEp = this.episodeList?.find(ep => ep.url === this.currentUrl);
-                            const episodeName = (this.episodeList?.length > 1 && currentEp) ? currentEp.name : null;
 
-                            console.log('[进度记忆] 当前集数:', episodeName, '当前URL:', this.currentUrl?.substring(0, 30));
+                            // 倍速变化时显示指示器
+                            dp.on('ratechange', () => {
+                                const rate = dp.video.playbackRate;
+                                speedIndicator.textContent = `${rate}x`;
+                                speedIndicator.classList.add('show');
+                                clearTimeout(speedIndicator._hideTimer);
+                                speedIndicator._hideTimer = setTimeout(() => {
+                                    speedIndicator.classList.remove('show');
+                                }, 1500);
+                            });
 
-                            // 如果距离结尾 < 2分钟，视为完播，清除进度
-                            if (duration > 0 && currentTime > duration - 120) {
+                            setupErrorHandling();
+
+                            // ========== 🕐 播放进度记忆功能 (外部实现) ==========
+                            // 标准化集数名称，确保不同源使用相同的 Key
+                            const normalizeEpisodeName = (name) => {
+                                if (!name) return '正片';
+                                // 移除前导零: 第01集 -> 第1集, 第001集 -> 第1集
+                                let normalized = name.replace(/第0*(\d+)集/g, '第$1集');
+                                // 也处理纯数字: 01 -> 1
+                                normalized = normalized.replace(/^0+(\d)/, '$1');
+                                return normalized || '正片';
+                            };
+
+                            // 智能 Key 生成（使用 this.currentUrl 动态获取当前集数）
+                            // - 电影（只有1集）：忽略集数名称（正片/HD/HD中字等），只用电影名
+                            // - 剧集（多集）：使用电影名 + 标准化集数
+                            const getProgressKey = () => {
+                                const vodName = this.currentGroup?.name || 'unknown';
+
+                                // 如果只有1集（电影），不加集数后缀，这样 正片/HD/HD中字 都共享同一个进度
+                                if (this.episodeList && this.episodeList.length === 1) {
+                                    const key = `donggua_progress_${vodName}`.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
+                                    return key.substring(0, 80);
+                                }
+
+                                // 多集（剧集），使用电影名 + 当前播放集数（动态获取！）
+                                let episodeName = '正片';
+                                if (this.episodeList && this.episodeList.length > 0) {
+                                    const currentEp = this.episodeList.find(ep => ep.url === this.currentUrl);
+                                    if (currentEp) {
+                                        episodeName = normalizeEpisodeName(currentEp.name);
+                                    }
+                                }
+                                const combined = `${vodName}_${episodeName}`.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
+                                return 'donggua_progress_' + combined.substring(0, 80);
+                            };
+
+                            // 注意：progressKey 现在是动态计算的，每次调用 getProgressKey() 获取
+                            console.log('[进度记忆] 初始 Key:', getProgressKey());
+
+                            // 恢复播放进度
+                            let progressRestored = false;
+                            dp.on('canplay', () => {
+                                if (progressRestored) return;
+
+                                try {
+                                    const currentKey = getProgressKey();
+                                    const saved = localStorage.getItem(currentKey);
+                                    console.log('[进度记忆] canplay 触发, Key:', currentKey);
+                                    console.log('[进度记忆] 存储数据:', saved);
+                                    console.log('[进度记忆] 视频时长:', dp.video.duration);
+                                    console.log('[进度记忆] 当前时间:', dp.video.currentTime);
+                                    console.log('[进度记忆] 是否可seek:', dp.video.seekable.length > 0 ? `是 (${dp.video.seekable.start(0)}-${dp.video.seekable.end(0)})` : '否');
+
+                                    if (saved) {
+                                        const savedData = JSON.parse(saved);
+                                        const savedTime = savedData.time;
+                                        const savedDate = new Date(savedData.date);
+                                        const now = new Date();
+                                        const daysDiff = (now - savedDate) / (1000 * 60 * 60 * 24);
+
+                                        console.log('[进度记忆] 保存时间:', savedTime, '秒');
+                                        console.log('[进度记忆] 保存日期:', savedData.date, `(${daysDiff.toFixed(1)}天前)`);
+
+                                        // 只恢复30天内的进度，且进度在有效范围内
+                                        const isTimeOK = daysDiff < 30;
+                                        const isMinOK = savedTime > 60;  // 至少看过1分钟
+                                        const isMaxOK = dp.video.duration && savedTime < dp.video.duration - 120;  // 距离结尾>2分钟
+
+                                        console.log('[进度记忆] 检查: 30天内=' + isTimeOK + ', >1分钟=' + isMinOK + ', <结尾2分钟=' + isMaxOK);
+
+                                        if (isTimeOK && isMinOK && isMaxOK) {
+                                            console.log('[进度记忆] ✅ 准备跳转到:', savedTime);
+
+                                            // 记录跳转前的时间
+                                            const beforeSeek = dp.video.currentTime;
+
+                                            dp.seek(savedTime);
+
+                                            // 延迟检查跳转是否成功
+                                            setTimeout(() => {
+                                                const afterSeek = dp.video.currentTime;
+                                                console.log('[进度记忆] 跳转结果: 之前=' + beforeSeek.toFixed(1) + ', 目标=' + savedTime + ', 之后=' + afterSeek.toFixed(1));
+
+                                                if (Math.abs(afterSeek - savedTime) < 10) {
+                                                    console.log('[进度记忆] ✅ 跳转成功!');
+                                                } else {
+                                                    console.log('[进度记忆] ⚠️ 跳转可能失败，视频源可能不支持精确跳转');
+                                                }
+                                            }, 1000);
+
+                                            dp.notice(`▶ 已恢复上次观看位置 ${Math.floor(savedTime / 60)}:${String(Math.floor(savedTime % 60)).padStart(2, '0')}`, 3000);
+                                        } else {
+                                            console.log('[进度记忆] ❌ 条件不满足，跳过恢复');
+                                        }
+                                    } else {
+                                        console.log('[进度记忆] 无保存记录');
+                                    }
+                                } catch (e) {
+                                    console.log('[进度记忆] 恢复失败:', e);
+                                }
+                                progressRestored = true;
+                            });
+
+                            // 进度保存逻辑：
+                            // - 只有当前位置 > 1分钟 才保存（防止从头看的资源覆盖进度）
+                            // - 允许进度倒退（用户可能重新开始看）
+                            // - 距离结尾 < 2分钟 视为完播，清除进度
+                            const saveProgress = (currentTime) => {
+                                const duration = dp.video?.duration || 0;
+
+                                // 获取电影信息用于观看历史
+                                const movieName = this.currentGroup?.name || '';
+                                const poster = this.currentGroup?.pic || '';
+                                // 使用 this.currentUrl 获取当前正在播放的集数（而不是闭包中固定的 url）
+                                const currentEp = this.episodeList?.find(ep => ep.url === this.currentUrl);
+                                const episodeName = (this.episodeList?.length > 1 && currentEp) ? currentEp.name : null;
+
+                                console.log('[进度记忆] 当前集数:', episodeName, '当前URL:', this.currentUrl?.substring(0, 30));
+
+                                // 如果距离结尾 < 2分钟，视为完播，清除进度
+                                if (duration > 0 && currentTime > duration - 120) {
+                                    localStorage.removeItem(getProgressKey());
+                                    console.log('[进度记忆] 即将完播，清除进度记录');
+                                    // 更新观看历史（进度100%）
+                                    if (movieName) {
+                                        this.addToWatchHistory(movieName, poster, episodeName, duration, duration, this.currentGroup);
+                                    }
+                                    return;
+                                }
+
+                                // 只有播放位置 > 1分钟才保存（防止从头播放的资源覆盖进度）
+                                if (currentTime <= 60) {
+                                    console.log('[进度记忆] 当前位置 < 1分钟，不保存进度和历史');
+                                    return;
+                                }
+
+                                try {
+                                    const data = {
+                                        time: Math.floor(currentTime),
+                                        date: new Date().toISOString()
+                                    };
+                                    localStorage.setItem(getProgressKey(), JSON.stringify(data));
+                                    console.log('[进度记忆] 保存进度:', currentTime.toFixed(0), '秒, 集数:', episodeName);
+
+                                    // 同时更新观看历史（只有进度 > 1分钟才更新，防止覆盖为0）
+                                    if (movieName) {
+                                        this.addToWatchHistory(movieName, poster, episodeName, currentTime, duration, this.currentGroup);
+                                    }
+                                } catch (e) {
+                                    console.log('[进度记忆] 保存失败:', e);
+                                }
+                            };
+
+                            // 定时保存进度 (每15秒)
+                            const progressSaveInterval = setInterval(() => {
+                                if (dp.video && !dp.video.paused) {
+                                    saveProgress(dp.video.currentTime);
+                                }
+                            }, 15000);
+
+                            // 暂停时保存
+                            dp.on('pause', () => {
+                                if (dp.video) {
+                                    saveProgress(dp.video.currentTime);
+                                }
+                            });
+
+                            // 页面关闭前保存
+                            window.addEventListener('beforeunload', () => {
+                                if (dp.video) {
+                                    saveProgress(dp.video.currentTime);
+                                }
+                                // 使用 sendBeacon 确保页面关闭时也能同步
+                                this.pushHistoryBeacon();
+                            });
+
+                            // 播放结束时清除进度记录
+                            dp.on('ended', () => {
                                 localStorage.removeItem(getProgressKey());
-                                console.log('[进度记忆] 即将完播，清除进度记录');
+                                console.log('[进度记忆] 播放完毕，清除记录');
                                 // 更新观看历史（进度100%）
+                                const movieName = this.currentGroup?.name || '';
+                                const poster = this.currentGroup?.pic || '';
+                                const currentEp = this.episodeList?.find(ep => ep.url === this.currentUrl);
+                                const episodeName = (this.episodeList?.length > 1 && currentEp) ? currentEp.name : null;
+                                const duration = dp.video?.duration || 0;
                                 if (movieName) {
                                     this.addToWatchHistory(movieName, poster, episodeName, duration, duration, this.currentGroup);
                                 }
-                                return;
-                            }
+                            });
 
-                            // 只有播放位置 > 1分钟才保存（防止从头播放的资源覆盖进度）
-                            if (currentTime <= 60) {
-                                console.log('[进度记忆] 当前位置 < 1分钟，不保存进度和历史');
-                                return;
-                            }
-
-                            try {
-                                const data = {
-                                    time: Math.floor(currentTime),
-                                    date: new Date().toISOString()
-                                };
-                                localStorage.setItem(getProgressKey(), JSON.stringify(data));
-                                console.log('[进度记忆] 保存进度:', currentTime.toFixed(0), '秒, 集数:', episodeName);
-
-                                // 同时更新观看历史（只有进度 > 1分钟才更新，防止覆盖为0）
-                                if (movieName) {
-                                    this.addToWatchHistory(movieName, poster, episodeName, currentTime, duration, this.currentGroup);
-                                }
-                            } catch (e) {
-                                console.log('[进度记忆] 保存失败:', e);
-                            }
-                        };
-
-                        // 定时保存进度 (每15秒)
-                        const progressSaveInterval = setInterval(() => {
-                            if (dp.video && !dp.video.paused) {
-                                saveProgress(dp.video.currentTime);
-                            }
-                        }, 15000);
-
-                        // 暂停时保存
-                        dp.on('pause', () => {
-                            if (dp.video) {
-                                saveProgress(dp.video.currentTime);
-                            }
-                        });
-
-                        // 页面关闭前保存
-                        window.addEventListener('beforeunload', () => {
-                            if (dp.video) {
-                                saveProgress(dp.video.currentTime);
-                            }
-                            // 使用 sendBeacon 确保页面关闭时也能同步
-                            this.pushHistoryBeacon();
-                        });
-
-                        // 播放结束时清除进度记录
-                        dp.on('ended', () => {
-                            localStorage.removeItem(getProgressKey());
-                            console.log('[进度记忆] 播放完毕，清除记录');
-                            // 更新观看历史（进度100%）
-                            const movieName = this.currentGroup?.name || '';
-                            const poster = this.currentGroup?.pic || '';
-                            const currentEp = this.episodeList?.find(ep => ep.url === this.currentUrl);
-                            const episodeName = (this.episodeList?.length > 1 && currentEp) ? currentEp.name : null;
-                            const duration = dp.video?.duration || 0;
-                            if (movieName) {
-                                this.addToWatchHistory(movieName, poster, episodeName, duration, duration, this.currentGroup);
-                            }
-                        });
-
-                    } else {
+                        } else {
                         console.log('[播放器] 使用已有 DPlayer 实例，切换视频');
 
                         // 标准化集数名称

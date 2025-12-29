@@ -106,6 +106,13 @@ export async function onRequest(context) {
             const convertedData = convertLunaTVFormat(data);
 
             if (convertedData && convertedData.sites.length > 0) {
+                // [Modified] Inject GodTV Adapter
+                convertedData.sites.unshift({
+                    key: 'godtv',
+                    name: '🚀GodTV(免翻)',
+                    api: new URL('/api/proxy/godtv_search', context.request.url).toString()
+                });
+
                 console.log(`[Sites] Successfully loaded ${convertedData.sites.length} sites from LunaTV-config`);
                 return new Response(JSON.stringify(convertedData), { headers: corsHeaders });
             }
@@ -115,8 +122,18 @@ export async function onRequest(context) {
     }
 
     // 返回备用静态配置
+    // 返回备用静态配置
     console.log('[Sites] Using fallback static config');
-    return new Response(JSON.stringify(FALLBACK_SITES), {
+
+    // Inject GodTV into fallback
+    const fallbackData = JSON.parse(JSON.stringify(FALLBACK_SITES));
+    fallbackData.sites.unshift({
+        key: 'godtv',
+        name: '🚀GodTV(免翻)',
+        api: new URL('/api/proxy/godtv_search', context.request.url).toString()
+    });
+
+    return new Response(JSON.stringify(fallbackData), {
         headers: corsHeaders
     });
 }
