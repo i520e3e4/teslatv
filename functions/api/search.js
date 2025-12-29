@@ -30,6 +30,14 @@ export async function onRequest(context) {
     const sitesData = await sitesResponse.json();
     const sites = sitesData.sites || [];
 
+    // [New] Inject GodTV Adapter
+    // Allows searching GodTV content alongside other generic sites
+    sites.push({
+        key: 'godtv',
+        name: '🚀GodTV(免翻)',
+        api: new URL('/api/proxy/godtv_search', context.request.url).toString()
+    });
+
     if (!stream) {
         // 非流式模式：一次性返回所有结果
         const allResults = [];
