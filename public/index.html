@@ -5006,6 +5006,51 @@
                     console.log('[播放器] episodeList长度:', this.episodeList?.length);
                     console.log('[播放器] dp已存在:', !!dp);
 
+
+                    // ========== Pre-resolution for GodTV ==========
+                    // GodTV returns a page URL, we need to fetch the actual m3u8 from our proxy
+                    if (url && (url.includes('godtv.pro') || url.includes('godtv'))) {
+                        console.log('[GodTV] Detected GodTV URL, resolving via proxy...');
+                        try {
+                            const proxyUrl = '/api/proxy/godtv?url=' + encodeURIComponent(url);
+                            // Avoid fetch in loop or recursion, just one-off
+                            // We need to pause execution until resolved. 
+                            // Since play() is not async, we might need to handle this carefully.
+                            // But Vue methods can be async. Let's make play() async or handle promise.
+
+                            // Let's assume we can make play() async or handle it here.
+                            // If we can't await, we should fetch then call play(newUrl).
+                            // But play is called from template probably.
+
+                            // Checking if we are already resolving to avoid infinite loop
+                            if (!this._isResolvingGodTV) {
+                                this._isResolvingGodTV = true;
+                                fetch(proxyUrl)
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        this._isResolvingGodTV = false;
+                                        if (data.success && data.url) {
+                                            console.log('[GodTV] Resolved to:', data.url);
+                                            // Recursively call play with the new m3u8 URL
+                                            // Check if it is valid m3u8
+                                            this.play(data.url);
+                                        } else {
+                                            console.error('[GodTV] Resolution failed:', data);
+                                            dp.notice('GodTV 解析失败', 2000);
+                                        }
+                                    })
+                                    .catch(err => {
+                                        this._isResolvingGodTV = false;
+                                        console.error('[GodTV] Network error:', err);
+                                        dp.notice('GodTV 网络错误', 2000);
+                                    });
+                                return; // Stop current execution, wait for fetch
+                            }
+                        } catch (e) {
+                            console.error('[GodTV] Error:', e);
+                        }
+                    }
+
                     // ========== TeslaTV 特斯拉行车观影模式 ==========
                     // 检测是否为特斯拉浏览器，如果是则使用 AVPlayer 独立页面播放
                     // 这样可以绕过特斯拉在行驶中禁用视频播放的限制

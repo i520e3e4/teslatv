@@ -794,12 +794,70 @@ app.get('/api/tmdb-image/:size/:filename', async (req, res) => {
 
         // 发送文件
         res.sendFile(localPath);
+
     } catch (error) {
-        console.error(`[Image Proxy Error] ${tmdbUrl}:`, error.message);
+        console.error(`[Image Proxy Error] ${tmdbUrl}: `, error.message);
         if (fs.existsSync(localPath)) {
             try { fs.unlinkSync(localPath); } catch (e) { }
         }
-        res.status(404).send('Image not found');
+        res.status(500).send('Image fetch failed');
+    }
+});
+
+// 5. GodTV 专用代理 API
+// 这个接口用于模拟 Tesla UA 访问 GodTV 播放页，提取真实的 m3u8 地址
+app.get('/api/proxy/godtv', async (req, res) => {
+    const targetUrl = req.query.url;
+
+    if (!targetUrl) {
+        return res.status(400).json({ error: 'Missing url parameter' });
+    }
+
+    try {
+        console.log(`[GodTV Proxy]Fetching: ${targetUrl} `);
+
+        // 使用 Tesla UA 发起请求
+        const response = await axios.get(targetUrl, {
+            headers: {
+                // 有效的 Tesla 车机 User-Agent
+                'User-Agent': 'Mozilla/5.0 (X11; GNU/Linux) AppleWebKit/537.36 (KHTML, like Gecko) Chromium/110.0.5481.178 Chrome/110.0.5481.178 Safari/537.36 Tesla/2023.20.7',
+                'Referer': 'https://godtv.pro/'
+            },
+            timeout: 10000
+        });
+
+        const html = response.data;
+
+        // 提取 player_aaaa 变量中的 JSON 数据
+        // 目标格式: var player_aaaa={...}
+        const match = html.match(/var\s+player_aaaa\s*=\s*(\{.*?\});/s);
+
+        if (match && match[1]) {
+            try {
+                const playerData = JSON.parse(match[1]);
+                const m3u8Url = playerData.url;
+
+                if (m3u8Url) {
+                    console.log(`[GodTV Proxy]Success: ${m3u8Url} `);
+                    return res.json({
+                        success: true,
+                        url: m3u8Url,
+                        original_data: playerData
+                    });
+                }
+            } catch (e) {
+                console.error('[GodTV Proxy] Parse JSON error:', e.message);
+            }
+        }
+
+        console.error('[GodTV Proxy] Extraction failed');
+        // 提取失败时返回原始 HTML 片段便于调试（截断）
+        const debugSnippet = html.substring(0, 500);
+        res.status(404).json({ error: 'Failed to extract video URL', debug_snippet: debugSnippet });
+
+    } catch (error) {
+        console.error(`[GodTV Proxy Error] ${targetUrl}: `, error.message);
+        res.status(500).json({ error: 'Proxy request failed', message: error.message });
     }
 });
 

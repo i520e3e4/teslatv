@@ -1,6 +1,12 @@
 {
     "sites": [
         {
+            "key": "godtv",
+            "name": "GodTV (Pro)",
+            "api": "https://godtv.pro/api.php/provide/vod",
+            "active": true
+        },
+        {
             "key": "iqiyizy",
             "name": "爱奇艺资源",
             "api": "https://iqiyizyapi.com/api.php/provide/vod",
