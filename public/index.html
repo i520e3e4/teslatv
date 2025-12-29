@@ -1004,6 +1004,61 @@
             }
         }
 
+        /* Custom DPlayer Settings Items */
+        .dplayer-custom-setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            font-size: 13px;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .dplayer-custom-setting-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .dplayer-setting-toggle {
+            position: relative;
+            width: 34px;
+            height: 18px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            transition: all 0.3s;
+        }
+
+        .dplayer-setting-toggle.active {
+            background: #e50914;
+        }
+
+        .dplayer-setting-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 14px;
+            height: 14px;
+            background: #fff;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .dplayer-setting-toggle.active::after {
+            transform: translateX(16px);
+        }
+
+        .dplayer-setting-action-btn {
+            font-size: 12px;
+            color: #aaa;
+            transition: color 0.2s;
+        }
+
+        .dplayer-custom-setting-item:hover .dplayer-setting-action-btn {
+            color: #e50914;
+        }
+
         /* 全局滚动条 */
         ::-webkit-scrollbar {
             width: 8px;
@@ -1047,7 +1102,6 @@
             font-size: 26px;
             font-weight: 800;
             color: var(--accent);
-            text-transform: uppercase;
             letter-spacing: 1px;
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
         }
@@ -5137,61 +5191,233 @@
                             ]
                         });
 
-                        // ========== 🔧 设置菜单修复 ==========
+                        // ========== 🔧 设置菜单修复 & 高级功能注入 ==========
                         setTimeout(() => {
                             const dplayerContainer = document.getElementById('dplayer');
                             const settingBox = dplayerContainer.querySelector('.dplayer-setting-box');
                             const mask = dplayerContainer.querySelector('.dplayer-mask');
 
+                            // --- 1. 基础修复 ---
                             if (settingBox && mask) {
                                 // 使用 MutationObserver 监控设置菜单的打开/关闭状态
                                 const observer = new MutationObserver((mutations) => {
                                     mutations.forEach((mutation) => {
                                         if (mutation.attributeName === 'class') {
                                             const isOpen = settingBox.classList.contains('dplayer-setting-box-open');
-                                            // 当设置菜单打开时，禁用遮罩层的点击事件
                                             mask.style.pointerEvents = isOpen ? 'none' : 'auto';
-                                            console.log('[Settings] Menu ' + (isOpen ? 'OPENED - mask disabled' : 'CLOSED - mask enabled'));
                                         }
                                     });
                                 });
-
                                 observer.observe(settingBox, { attributes: true });
 
                                 // 再次点击设置按钮时关闭设置菜单
                                 const settingIcon = dplayerContainer.querySelector('.dplayer-setting-icon');
                                 if (settingIcon) {
-                                    // 使用 mousedown 记录点击前的菜单状态
                                     let wasOpenBeforeClick = false;
-
                                     settingIcon.addEventListener('mousedown', () => {
                                         wasOpenBeforeClick = settingBox.classList.contains('dplayer-setting-box-open');
                                     });
-
                                     settingIcon.addEventListener('click', (e) => {
-                                        // 只有在点击前菜单就已经打开的情况下才关闭
                                         if (wasOpenBeforeClick) {
                                             e.stopPropagation();
                                             settingBox.classList.remove('dplayer-setting-box-open');
-                                            // 同时关闭速度选择子菜单
                                             const settingSpeed = settingBox.querySelector('.dplayer-setting-speed');
-                                            if (settingSpeed) {
-                                                settingSpeed.classList.add('dplayer-setting-box-hide');
-                                            }
-                                            // 重新显示主设置菜单（隐藏状态）
+                                            if (settingSpeed) settingSpeed.classList.add('dplayer-setting-box-hide');
                                             const settingOrigin = settingBox.querySelector('.dplayer-setting-origin');
-                                            if (settingOrigin) {
-                                                settingOrigin.classList.remove('dplayer-setting-box-hide');
-                                            }
-                                            console.log('[Settings] Toggled OFF by button click');
+                                            if (settingOrigin) settingOrigin.classList.remove('dplayer-setting-box-hide');
                                         }
-                                        wasOpenBeforeClick = false; // 重置状态
+                                        wasOpenBeforeClick = false;
                                     });
                                 }
+                            }
 
-                                console.log('[Settings] Fix applied - monitoring setting box state');
+                            // --- 2. 高级设置功能注入 ---
+                            if (settingBox) {
+                                const settingOrigin = settingBox.querySelector('.dplayer-setting-origin');
+                                if (settingOrigin) {
+                                    // 2.1 存储 Key 生成
+                                    const normalizeName = (str) => str ? str.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_') : 'unknown';
+                                    const vodName = normalizeName(this.currentGroup?.name);
+                                    let epName = 'film';
+                                    if (this.episodeList && this.episodeList.length > 1) {
+                                        const curEp = this.episodeList.find(ep => ep.url === url);
+                                        if (curEp) epName = normalizeName(curEp.name);
+                                    }
+                                    const skipConfigKey = `donggua_skip_${vodName}_${epName}`;
+                                    const globalSettingsKey = 'donggua_player_settings';
+
+                                    // 2.2 读取配置
+                                    let globalSettings = JSON.parse(localStorage.getItem(globalSettingsKey) || '{"adBlock": true, "skipEnabled": false}');
+                                    let skipConfig = JSON.parse(localStorage.getItem(skipConfigKey) || '{}'); // { intro: null, outro: null }
+
+                                    // 2.3 构建 UI
+                                    const customContainer = document.createElement('div');
+                                    customContainer.className = 'dplayer-custom-settings';
+                                    customContainer.style.borderTop = '1px solid rgba(255,255,255,0.1)';
+                                    customContainer.style.marginTop = '5px';
+                                    customContainer.style.paddingTop = '5px';
+
+                                    const createToggleItem = (text, active, onClick) => {
+                                        const item = document.createElement('div');
+                                        item.className = 'dplayer-custom-setting-item';
+                                        item.innerHTML = `<span>${text}</span><div class="dplayer-setting-toggle ${active ? 'active' : ''}"></div>`;
+                                        item.onclick = (e) => {
+                                            e.stopPropagation();
+                                            const toggle = item.querySelector('.dplayer-setting-toggle');
+                                            toggle.classList.toggle('active');
+                                            onClick(toggle.classList.contains('active'));
+                                        };
+                                        return item;
+                                    };
+
+                                    const createActionItem = (text, subText, onClick) => {
+                                        const item = document.createElement('div');
+                                        item.className = 'dplayer-custom-setting-item';
+                                        item.innerHTML = `<span>${text}</span><span class="dplayer-setting-action-btn">${subText}</span>`;
+                                        item.onclick = (e) => {
+                                            e.stopPropagation();
+                                            onClick(item.querySelector('.dplayer-setting-action-btn'));
+                                        };
+                                        return item;
+                                    };
+
+                                    // -> AD 去广告
+                                    customContainer.appendChild(createToggleItem('AD 去广告', globalSettings.adBlock, (val) => {
+                                        globalSettings.adBlock = val;
+                                        localStorage.setItem(globalSettingsKey, JSON.stringify(globalSettings));
+                                        dp.notice(val ? '已开启去广告模式' : '已关闭去广告模式', 2000);
+                                    }));
+
+                                    // -> 跳过片头片尾开关
+                                    customContainer.appendChild(createToggleItem('跳过片头片尾', globalSettings.skipEnabled, (val) => {
+                                        globalSettings.skipEnabled = val;
+                                        localStorage.setItem(globalSettingsKey, JSON.stringify(globalSettings));
+                                        dp.notice(val ? '已开启自动跳过' : '已关闭自动跳过', 2000);
+                                    }));
+
+                                    // -> 删除配置
+                                    customContainer.appendChild(createActionItem('删除跳过配置', '点击删除', (btn) => {
+                                        localStorage.removeItem(skipConfigKey);
+                                        skipConfig = {};
+                                        btn.innerText = '已删除';
+                                        setTimeout(() => btn.innerText = '点击删除', 2000);
+                                        dp.notice('当前集跳过配置已清除', 2000);
+                                    }));
+
+                                    // -> 设置片头
+                                    customContainer.appendChild(createActionItem('设置片头', '设为当前', (btn) => {
+                                        const time = dp.video.currentTime;
+                                        skipConfig.intro = time;
+                                        localStorage.setItem(skipConfigKey, JSON.stringify(skipConfig));
+                                        dp.notice(`片头结束点已设为 ${time.toFixed(0)}秒`, 2000);
+                                    }));
+
+                                    // -> 设置片尾
+                                    customContainer.appendChild(createActionItem('设置片尾', '设为当前', (btn) => {
+                                        const time = dp.video.currentTime;
+                                        skipConfig.outro = time;
+                                        localStorage.setItem(skipConfigKey, JSON.stringify(skipConfig));
+                                        dp.notice(`片尾开始点已设为 ${time.toFixed(0)}秒`, 2000);
+                                    }));
+
+                                    settingOrigin.appendChild(customContainer);
+
+                                    // 2.4 监听播放时间 (自动跳过逻辑)
+                                    let hasSkippedIntro = false;
+                                    let hasSkippedOutro = false;
+
+                                    dp.on('timeupdate', () => {
+                                        if (!globalSettings.skipEnabled || !dp.video || dp.video.paused) return;
+
+                                        const time = dp.video.currentTime;
+                                        const duration = dp.video.duration;
+
+                                        // 跳过片头
+                                        if (skipConfig.intro && time < skipConfig.intro && !hasSkippedIntro) {
+                                            // 只有在接近 0 开始播放时才跳过吗？或者任何时候？
+                                            // 逻辑：如果当前时间 < intro，说明在片头内。
+                                            // 为防止用户手动拖回片头无法观看，我们只在"也是刚开始播放"或者"自然播放进入"时跳过？
+                                            // 简化逻辑：如果在片头范围内，直接seek到intro结束点。
+                                            // 但为了允许用户看片头，我们加一个限制：只有刚加载视频的前几秒，或者刚seek到这里？
+                                            // 最好的体验：如果不加限制，用户想看片头都看不了。
+                                            // 改进：只在 time < 5秒 且 intro > time 时跳过？
+                                            // 或者：一旦跳过一次，标记 hasSkippedIntro。如果用户手动拖回去，hasSkippedIntro已经为true，就不跳了。
+                                            // 视频切换/重新加载时 hasSkippedIntro 重置。
+
+                                            // 修正：如果刚开始播放 (time < 2) 且有 intro，直接跳。
+                                            if (time < Math.min(skipConfig.intro, 10)) {
+                                                dp.seek(skipConfig.intro);
+                                                dp.notice('已为您跳过片头', 2000);
+                                                hasSkippedIntro = true;
+                                            }
+                                        }
+
+                                        // 跳过片尾
+                                        if (skipConfig.outro && time > skipConfig.outro && !hasSkippedOutro && (duration - time) < 600) {
+                                            // (duration - time) < 600 确保不会因为误设置了一个很小的值导致刚开始就跳过
+                                            // 只有在总时长范围内合理时才跳
+                                            dp.notice('已为您跳过片尾', 2000);
+                                            hasSkippedOutro = true;
+                                            // 触发结束 -> 自动下一集
+                                            // dp.seek(duration); // 直接结束
+                                            // 或者直接调用切换下一集逻辑？
+                                            // dp.seek(duration - 0.5); 
+                                            // 简单点：
+                                            dp.seek(duration);
+                                        }
+                                    });
+
+                                    // 切换视频时重置标记
+                                    dp.on('canplay', () => {
+                                        hasSkippedIntro = false;
+                                        hasSkippedOutro = false;
+                                        // 重新读取配置 (也许换集了)
+                                        // ... 这里简化处理，假设 play() 会重新执行整个逻辑
+                                        // 但如果是 switchVideo，这个 timeout 块可能不会重新执行！
+                                        // 这是一个潜在的问题。 play() 方法确实会重新创建 dp 吗？
+                                        // 检查上面的代码： if (!dp) { ... new DPlayer ... setTimeout ... } else { dp.switchVideo ... }
+                                        // 所以，如果复用 dp，这段注入逻辑只会执行一次！
+                                        // ！！这意味着 skipConfig 在切换视频时不会更新！
+                                        // 必须把 skipConfig 的读取逻辑放在 timeupdate 里或者 switchVideo 里。
+
+                                        // 修正方案：
+                                        // 将 updateConfig 逻辑挂载到 dp 实例上，或者在 switchVideo 地方更新。
+                                        // 为了简单，我们在 timeupdate 里动态读取当前集的 key？不，性能太差。
+                                        // 我们可以监听 dp.on('switch') 或类似事件？
+                                        // 最好的办法：在 else { dp.switchVideo } 那里也更新一下配置。
+                                        // 或者，我们定义一个全局函数/变量来更新配置。
+                                    });
+
+                                    // 挂载更新函数到 dp 实例，以便 switchVideo 时调用
+                                    // 挂载更新配置函数 (供 switchVideo 调用)
+                                    dp.updateSkipConfig = (newUrl) => {
+                                        const normalizeName = (str) => str ? str.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_') : 'unknown';
+                                        const vodName = normalizeName(this.currentGroup?.name);
+
+                                        let epName = 'film';
+                                        // 如果有 episodes，尝试找到对应集数名称
+                                        if (this.episodeList && this.episodeList.length > 1) {
+                                            const targetUrl = newUrl || (dp.video ? dp.video.src : '') || this.currentUrl;
+                                            const curEp = this.episodeList.find(ep => ep.url === targetUrl);
+                                            if (curEp) epName = normalizeName(curEp.name);
+                                        }
+
+                                        // 更新闭包内的变量
+                                        skipConfigKey = `donggua_skip_${vodName}_${epName}`;
+                                        globalSettings = JSON.parse(localStorage.getItem(globalSettingsKey) || '{"adBlock": true, "skipEnabled": false}');
+                                        skipConfig = JSON.parse(localStorage.getItem(skipConfigKey) || '{}');
+
+                                        console.log('[AdvancedSettings] Config updated:', skipConfigKey, skipConfig);
+                                        dp.notice && dp.notice(`已加载配置: ${skipConfig.intro ? '有片头' : '无片头'} / ${skipConfig.outro ? '有片尾' : '无片尾'}`, 2000);
+                                    };
+                                    // 我们把 skipConfigKey 的计算逻辑提取出来，每次需要用的时候实时计算。
+                                    // 然后实时读取 localStorage。
+                                    // 这样最稳健，支持切换视频。
+                                }
                             }
                         }, 500);
+
+                        // 添加全屏横屏功能（手机端）
 
                         // 添加全屏横屏功能（手机端）
                         dp.on('fullscreen', () => {
@@ -5702,6 +5928,9 @@
                         let progressRestored = false;
 
                         dp.switchVideo({ url: url, type: 'hls' });
+                        if (dp.updateSkipConfig) {
+                            dp.updateSkipConfig(url);
+                        }
                         console.log('[进度记忆-切换] switchVideo 已调用');
 
                         // 恢复新视频的进度
