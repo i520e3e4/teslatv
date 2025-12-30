@@ -1506,13 +1506,17 @@
         @media (min-width: 1024px) {
             .player-sidebar {
                 width: 380px;
+                min-width: 380px;
+                flex-shrink: 0;
                 height: 100%;
             }
 
             .player-sidebar.hidden {
                 width: 0;
+                min-width: 0;
                 border: none;
                 opacity: 0;
+                pointer-events: none;
             }
         }
 
@@ -5419,7 +5423,7 @@
                                                 settingBox.classList.remove('dplayer-setting-box-open');
                                                 const settingSpeed = settingBox.querySelector('.dplayer-setting-speed');
                                                 if (settingSpeed) settingSpeed.classList.add('dplayer-setting-box-hide');
-                                                const settingOrigin = settingBox.querySelector('.dplayer-setting-origin');
+                                                const settingOrigin = settingBox.querySelector('.dplayer-setting-origin-panel');
                                                 if (settingOrigin) settingOrigin.classList.remove('dplayer-setting-box-hide');
                                             }
                                             wasOpenBeforeClick = false;
@@ -5428,7 +5432,7 @@
                                 }
 
                                 // 2. 高级设置注入
-                                const settingOrigin = settingBox.querySelector('.dplayer-setting-origin');
+                                const settingOrigin = settingBox.querySelector('.dplayer-setting-origin-panel');
                                 // Ensure we don't inject twice
                                 if (settingOrigin && !settingOrigin.querySelector('.dplayer-custom-settings')) {
                                     // 2.1 存储 Key 生成
